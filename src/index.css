@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #007AFF;
+  --color-primary-container: #32ADE6;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #ffffff;
+  
+  --color-secondary: #FF2D55;
+  --color-secondary-container: #FF3B30;
+  --color-on-secondary: #ffffff;
+  
+  --color-tertiary: #34C759;
+  --color-tertiary-container: #30D158;
+  --color-on-tertiary: #ffffff;
+  
+  --color-surface: #F2F2F7;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #ffffff;
+  --color-surface-container: #F2F2F7;
+  --color-surface-container-high: #E5E5EA;
+  --color-surface-container-highest: #D1D1D6;
+  
+  --color-on-surface: #000000;
+  --color-on-surface-variant: #3C3C43;
+  --color-outline: #C7C7CC;
+  --color-outline-variant: #D1D1D6;
+
+  --font-sans: "SF Pro Display", "Inter", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
+  
+  --radius-xl: 2rem;
+  --radius-lg: 1.5rem;
+  --radius-md: 1rem;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-on-surface font-sans antialiased overflow-x-hidden;
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(210,100%,90%,1) 0, transparent 50%), 
+      radial-gradient(at 100% 0%, hsla(340,100%,90%,1) 0, transparent 50%),
+      radial-gradient(at 100% 100%, hsla(140,100%,90%,1) 0, transparent 50%),
+      radial-gradient(at 0% 100%, hsla(40,100%,90%,1) 0, transparent 50%);
+    background-attachment: fixed;
+  }
+}
+
+.glass {
+  @apply backdrop-blur-2xl bg-white/30 border border-white/50 shadow-xl shadow-black/5;
+}
+
+.glass-dark {
+  @apply backdrop-blur-2xl bg-black/10 border border-white/10 shadow-xl;
+}
+
+.glow-primary {
+  box-shadow: 0 0 20px rgba(0, 122, 255, 0.3);
+}
+
+.glow-secondary {
+  box-shadow: 0 0 20px rgba(255, 45, 85, 0.3);
+}
+
+.ios-shadow {
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
+}
+
+.primary-gradient {
+  background: linear-gradient(135deg, #007AFF 0%, #00C7BE 100%);
+}
+
+.celebration-gradient {
+  background: linear-gradient(135deg, #FF2D55 0%, #FF9500 100%);
+}
+
+.solemn-gradient {
+  background: linear-gradient(135deg, #8E8E93 0%, #1C1C1E 100%);
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Date picker color scheme for frosted glass */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  @apply opacity-50 contrast-125;
+  filter: invert(0.5);
+  cursor: pointer;
+}
+
+input[type="date"] {
+  color-scheme: light;
+}

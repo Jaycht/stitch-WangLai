@@ -1,8 +1,8 @@
 name: Build Android APK
 
-于:
+on:
   push:
-    分支: [main]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -33,6 +33,9 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Build APK
         working-directory: android
         run: |
@@ -42,5 +45,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: 往来礼记-APK
+          name: wangla-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk

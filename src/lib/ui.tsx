@@ -6,6 +6,7 @@ import {
   ChevronDown, Info,
 } from 'lucide-react';
 import { cn } from './utils';
+import { pushBack } from './backStack';
 
 /* ---------- 顶部条 ---------- */
 
@@ -50,15 +51,23 @@ export function Sheet({
 }) {
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    // 压入返回栈：Android 三键返回 / 侧滑都先关弹层，而不是退出应用。
+    // 这与原生 Android 行为一致（Dialog 的 back 优先于 Activity 的）。
+    const off = pushBack({
+      priority: 'overlay',
+      label: `Sheet:${title}`,
+      handler: () => {
+        onClose();
+        return true;
+      },
+    });
     return () => {
-      document.removeEventListener('keydown', onKey);
+      off();
       document.body.style.overflow = prev;
     };
-  }, [open, onClose]);
+  }, [open, onClose, title]);
 
   if (!open) return null;
   return (
@@ -105,6 +114,21 @@ export function Confirm({
   onOk: () => void;
   okText?: string;
 }) {
+  // 确认框必须拦截返回键 —— 被返回键关掉等于「取消」，
+  // 而危险操作（删除）的二次确认如果能被返回键静默取消，
+  // 用户会以为自己确认了。要退出只能点「取消」。
+  useEffect(() => {
+    if (!open) return;
+    return pushBack({
+      priority: 'overlay',
+      label: `Confirm:${title}`,
+      handler: () => {
+        onCancel();
+        return true;
+      },
+    });
+  }, [open, onCancel, title]);
+
   return (
     <div className="fixed inset-0 bg-black/45 z-50 flex items-center justify-center p-6">
       <div className="bg-card rounded-xl w-full max-w-[320px] overflow-hidden">
@@ -122,8 +146,8 @@ export function Confirm({
           <button
             onClick={onOk}
             className={cn(
-              'flex-1 h-11 text-[var(--f-lg)] font-medium border-l border-line active:bg-paper',
-              danger ? 'text-[#8E2A22]' : 'text-accent',
+              'flex-1 h-11 text-[var(--f-lg)] font-medium border-l border-line',
+              danger ? 'text-[#C62828] active:bg-[#C62828]/10' : 'text-accent active:bg-paper',
             )}
           >
             {okText}
@@ -297,7 +321,7 @@ export function IconBtn({
       aria-label={label}
       className={cn(
         'w-8 h-[var(--h-ctl)] -mr-1 flex items-center justify-center rounded-md active:bg-line/60',
-        danger ? 'text-[#8E2A22]' : 'text-ink-3',
+        danger ? 'text-[#C62828]' : 'text-ink-3',
       )}
     >
       <Trash2 size={15.5} strokeWidth={1.8} />

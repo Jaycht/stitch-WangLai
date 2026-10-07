@@ -1,6 +1,6 @@
 /** 待办事项 —— 恢复并增强：可关联人员、截止日期、逾期提示 */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Check, Trash2, Circle, Calendar, Link2, X, ListChecks, CheckSquare,
@@ -9,6 +9,7 @@ import { Todo, splitTodos } from '../lib/types';
 import { useApp, todayStr } from '../lib/store';
 import { TopBar, Sheet, Empty, Section, Confirm } from '../lib/ui';
 import { cn } from '../lib/utils';
+import { pushBack } from '../lib/backStack';
 import { useLongPress } from '../lib/useLongPress';
 import { SelectBar, CheckMark } from '../lib/ActionSheet';
 
@@ -57,6 +58,21 @@ export function TodosPage() {
   const selectable = showDone ? [...open, ...done] : open;
 
   const exitSelect = () => setSel(new Set());
+
+  /* 返回键优先级：多选模式下先退出多选，而不是返回上一个页面。
+     这与原生 Android 一致（选中的Checkbox 状态属于「临时模式」，
+     返回应该先撤销模式）。 */
+  useEffect(() => {
+    if (!selecting) return;
+    return pushBack({
+      priority: 'mode',
+      label: 'multi-select',
+      handler: () => {
+        exitSelect();
+        return true;
+      },
+    });
+  }, [selecting]);
   const toggleSel = (id: string) => {
     setSel((prev) => {
       const n = new Set(prev);
@@ -106,7 +122,7 @@ export function TodosPage() {
         }
       />
 
-      <div className="px-3 pt-3 pb-24 space-y-3">
+      <div className="page-body space-y-3">
         {selecting && (
           <SelectBar
             count={sel.size}
@@ -209,11 +225,16 @@ export function TodosPage() {
       <button
         onClick={() => setEdit('new')}
         aria-label="新增待办"
-        className="fixed right-3 bottom-[64px] w-12 h-12 rounded-full bg-accent text-white
-                   flex items-center justify-center shadow-lg shadow-black/15 active:scale-95
-                   transition-transform z-30"
+        className="fab fixed right-3 w-14 h-14 rounded-full bg-accent text-white
+                   flex items-center justify-center shadow-lg shadow-black/20
+                   active:scale-95 transition-transform z-30"
+        style={{ bottom: 'calc(var(--h-tab) + var(--sab) + 16px)' }}
       >
-        <span className="text-[var(--f-num)] leading-none font-light">+</span>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" strokeWidth={2.6}
+               strokeLinecap="round" aria-hidden>
+            <path d="M12 5v14" /><path d="M5 12h14" />
+          </svg>
       </button>
 
       {/* 批量删除待办 */}
@@ -344,7 +365,7 @@ function TodoRow({
         <div className="flex gap-1 shrink-0">
           <button
             onClick={() => { onRemove(); setConfirming(false); }}
-            className="text-[var(--f-xs)] text-[#8E2A22] px-1.5 py-1 rounded"
+            className="text-[var(--f-xs)] text-[#C62828] px-1.5 py-1 rounded"
           >确认删</button>
           <button
             onClick={() => setConfirming(false)}

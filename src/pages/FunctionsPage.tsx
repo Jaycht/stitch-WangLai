@@ -46,7 +46,7 @@ export function FunctionsPage() {
     <>
       <TopBar title="功能" sub="黄历 · 择日 · 统计" />
 
-      <div className="px-3 pt-3 pb-24 space-y-3.5">
+      <div className="page-body space-y-3.5">
         {/* 待办入口 —— 有未完成时置顶并显示数量 */}
         <button
           onClick={() => nav('/todos')}

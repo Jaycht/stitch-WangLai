@@ -30,7 +30,7 @@ export function LuckyPage() {
         onBack={() => nav(-1)}
       />
 
-      <div className="px-3 pt-3 pb-24 space-y-3">
+      <div className="page-body space-y-3">
         {/* 事项选择 */}
         <div>
           <div className="sec-title mb-2">办什么事</div>
@@ -147,7 +147,7 @@ export function TaiSuiPage() {
     <>
       <TopBar title="太岁查询" sub={`${info.gz}年 · ${info.animal}年`} onBack={() => nav(-1)} />
 
-      <div className="px-3 pt-3 pb-24 space-y-3">
+      <div className="page-body space-y-3">
         {/* 年份选择 */}
         <div className="card p-2 flex gap-1">
           {years.map((y) => (

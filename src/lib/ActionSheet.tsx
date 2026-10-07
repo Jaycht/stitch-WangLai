@@ -48,11 +48,11 @@ export function ActionSheet({
               i > 0 && 'border-t border-line',
             )}
           >
-            <span className={cn('shrink-0', a.danger ? 'text-[#8E2A22]' : 'text-ink-3')}>
+            <span className={cn('shrink-0', a.danger ? 'text-[#C62828]' : 'text-ink-3')}>
               {a.Icon ? <a.Icon size={16} strokeWidth={1.8} /> : null}
             </span>
             <div className="flex-1 min-w-0">
-              <div className={cn('text-[var(--f-md)]', a.danger && 'text-[#8E2A22]')}>
+              <div className={cn('text-[var(--f-md)]', a.danger && 'text-[#C62828]')}>
                 {a.label}
               </div>
               {a.desc && (
@@ -137,12 +137,7 @@ export function SelectBar({
       <button
         onClick={onDelete}
         disabled={count === 0}
-        className="pill-sm shrink-0 flex items-center gap-1"
-        style={
-          count > 0
-            ? { background: 'var(--color-accent)', borderColor: 'var(--color-accent)', color: '#fff' }
-            : undefined
-        }
+        className="pill-sm shrink-0 flex items-center gap-1 btn-danger"
         aria-label="删除所选"
       >
         <Trash2 size={12} strokeWidth={2.2} />

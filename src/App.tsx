@@ -8,12 +8,13 @@
  * 首屏只加载记账核心，秒开。
  */
 
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
   BrowserRouter, HashRouter, Routes, Route, useNavigate, useLocation,
 } from 'react-router-dom';
 import { CheckSquare } from 'lucide-react';
 import { TAB_ICONS } from './lib/TabIcons';
+import { setExitHook, setExitPending } from './lib/backStack';
 
 /**
  * 路由模式选择：
@@ -89,7 +90,75 @@ function TabBar() {
 
 /* ---------- 路由 ---------- */
 
+/**
+ * 四个 Tab 根页面 —— M3 规范：顶层目的地**不显示**返回箭头。
+ * 只有层级导航的子页面（下面 SECONDARY 里的）才显示。
+ */
+const TAB_ROOTS = ['/', '/persons', '/functions', '/settings'];
+
+/** 二级页面：只能从「功能」页进入，必须有返回 */
+const SECONDARY = ['/almanac', '/lucky', '/taisui', '/relation', '/todos'];
+
 function Shell() {
+  const nav = useNavigate();
+  const loc = useLocation();
+  const [exitAsk, setExitAsk] = useState(false);
+  // 离开应用需要「再按一次」的两段式确认。
+  // 计时器要能取消，否则用户按完返回去干别的事，3 秒后又弹一次。
+  const exitTimer = useRef<number | null>(null);
+
+  const atRoot = TAB_ROOTS.includes(loc.pathname);
+
+  /* ---------- 注入返回栈的兜底处理 ----------
+   *
+   * 栈空时（没有弹层、没在多选）才走到这里。分两种：
+   *   二级页面 → 直接 nav(-1) 返回上一级
+   *   Tab 根页 → 两段式确认：第一次弹提示，2 秒内第二次才真退出
+   *
+   * setExitPending 告诉 backStack「本次返回该不该放行退出」：
+   *   第一次按 → false → 原生收到 'ask-exit'，不退出，提示弹出
+   *   第二次按 → true  → 原生收到 'exit-now'，finish()
+   */
+  useEffect(() => {
+    // 返回 true = 本次返回已被应用消化（原生不要动）
+    // 返回 false = 要退出应用，但要先问用户
+    setExitHook((): boolean => {
+      if (!atRoot) {
+        // 二级页：直接回上一级，不打扰用户
+        nav(-1);
+        return true;
+      }
+      // 根页第一次按：弹提示，本次不放行
+      if (exitTimer.current === null) {
+        setExitAsk(true);
+        setExitPending(false);
+        exitTimer.current = window.setTimeout(() => {
+          exitTimer.current = null;
+          setExitAsk(false);
+        }, 2000);
+        return false;
+      }
+      // 2 秒内第二次按：清计时器，本次放行退出
+      window.clearTimeout(exitTimer.current);
+      exitTimer.current = null;
+      setExitAsk(false);
+      setExitPending(true);
+      return false;
+    });
+    return () => {
+      setExitHook(null);
+      setExitPending(false);
+    };
+  }, [atRoot, nav]);
+
+  // 组件卸载时清掉计时器，避免内存泄漏与「幽灵提示」
+  useEffect(() => () => {
+    if (exitTimer.current !== null) {
+      window.clearTimeout(exitTimer.current);
+      exitTimer.current = null;
+    }
+  }, []);
+
   return (
     <div className="min-h-screen">
       <Suspense fallback={<PageLoading />}>
@@ -111,6 +180,19 @@ function Shell() {
         </Routes>
       </Suspense>
       <TabBar />
+
+      {/* 退出确认：轻提示而非对话框，2 秒自动消失，不打断浏览 */}
+      {exitAsk && (
+        <div
+          className="fixed left-1/2 -translate-x-1/2 bottom-[calc(var(--h-tab)+var(--sab)+28px)]
+                     z-50 bg-ink/92 text-white text-[var(--f-md)]
+                     px-4 py-2.5 rounded-[var(--r-ctl)] shadow-lg
+                     max-w-[80%] text-center"
+          role="status"
+        >
+          再按一次退出往来礼记
+        </div>
+      )}
     </div>
   );
 }

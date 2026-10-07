@@ -177,6 +177,13 @@
    ================================================================ */
 
 :root {
+  /* ---------- 安全区 ---------- */
+  /* Android 15+ 强制 edge-to-edge，状态栏/手势条会盖住内容。
+     这两个变量在 JS 里实测写入（见 lib/safeArea.ts），
+     因为部分 WebView 不支持 env() 的动态读取。 */
+  --sat: env(safe-area-inset-top, 0px); /*状态栏高度 */
+  --sab: env(safe-area-inset-bottom, 0px); /* 手势条高度 */
+
   /* 字号缩放系数。
      最终倍率由 JS 注入到 --fs-sys：取「应用内档位」与「系统字体设置」
      两者的较大值（不叠乘，避免超出 M3 规范的 200% 上限）。
@@ -350,8 +357,32 @@
   font-size: var(--f-sm);
   border-radius: calc(var(--r-ctl) - 2px);
 }
-.btn-danger { background: #8E2A22; }
-.btn-danger.btn-ghost { color: #8E2A22; }
+/* ---------- 删除按钮：全app 统一样式 ----------
+   涛哥要求：所有删除按钮统一用红色醒目标注。
+   问题记录：原来 btn-danger 与 btn-ghost 叠加时，
+   btn-ghost 把文字设成红色、btn-danger 设成暗红底 ——
+   结果「删除」二字变成红字红底，看不见（截图确认）。
+   修正：删除一律「红底白字」，不用 ghost 变体。 */
+.btn-danger {
+  background: #C62828;
+  color: #fff;
+  font-weight: var(--w-med);
+  /* 白色描边，保证红底上文字的对比度 */
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+.btn-danger:active { background: #A51F1F; }
+/* 破坏 btn-ghost 的文字色覆盖 */
+.btn-danger.btn-ghost {
+  background: #C62828;
+  color: #fff;
+}
+/* 危险确认框里的按钮也统一 */
+.btn-danger-outline {
+  background: transparent;
+  color: #C62828;
+  border: 1px solid #C62828;
+}
+.btn-danger-outline:active { background: rgba(198, 40, 40, 0.1); }
 
 /* 方形图标按钮：宽高一致，不靠工具类覆盖 */
 .btn-icon {
@@ -534,14 +565,18 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: var(--h-tab);
+  /* min-height + padding-bottom：底部手势条的高度算进padding，
+     内容区不会被压扁。原先用固定 height 时，
+     图标顶到了栏的上下边缘。*/
+  min-height: var(--h-tab);
   display: flex;
+  align-items: stretch;
   z-index: 30;
   background: rgba(255, 255, 255, var(--card-alpha));
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-top: var(--bw) solid var(--color-line);
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: var(--sab);
   box-shadow: 0 -1px 3px rgba(28, 36, 32, 0.04);
 }
 .tabitem {
@@ -611,11 +646,16 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  height: var(--h-top);
+  /* Android 15+ 强制 edge-to-edge（targetSdk 36），
+     状态栏会盖住顶栏。必须用 safe-area-inset-top 把它顶出来。
+     min-height 而不是 height —— 内容多时能自动撑高，不会被截断。*/
+  min-height: var(--h-top);
+  padding-top: var(--sat);
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  padding: 0 var(--s-3);
+  padding-left: var(--s-3);
+  padding-right: var(--s-3);
   background: rgba(242, 245, 243, 0.9);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -709,4 +749,23 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* 大字时生肖六宫格改三列，否则每个格子放不下一个字 */
 [data-fontsize-scaled] .care-grid-6 {
   grid-template-columns: repeat(3, 1fr) !important;
+}
+
+/* ---------- 键盘避让 ---------- */
+/* 软键盘弹起时，FAB 与 Tab 栏都要让位，
+   否则会挡住正在输入的字段。 */
+body.kb-open .fab,
+body.kb-open .tabbar {
+  transform: translateY(120%);
+  transition: transform 0.2s ease;
+  pointer-events: none;
+}
+body.kb-open .fab { transform: translateY(80%); }
+
+/* ---------- 页面内容区底部留白 ----------
+   必须大于「Tab 栏高度 + 底部手势条」，否则最后一行内容被 Tab 栏压住。
+   不用 Tailwind 任意值 —— 里面有 CSS 变量，Tailwind 4 的任意值解析会失效。 */
+.page-body {
+  padding: var(--s-3) var(--s-3)
+    calc(var(--h-tab) + var(--sab) + 28px);
 }

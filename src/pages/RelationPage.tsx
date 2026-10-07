@@ -23,7 +23,7 @@ export function RelationPage() {
     <>
       <TopBar title="关系计算" sub="亲缘称呼速查" onBack={() => nav(-1)} />
 
-      <div className="px-3 pt-3 pb-24 space-y-3">
+      <div className="page-body space-y-3">
         <div className="card p-3">
           <label className="label">输入关系问句</label>
           <div className="flex gap-2">

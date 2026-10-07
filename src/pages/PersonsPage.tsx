@@ -1,6 +1,6 @@
 /** 人员档案：按人聚合，长按多选/操作菜单，可编辑完整档案 */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronRight, Phone, MessageCircle, MapPin, Tag, CheckSquare,
@@ -17,6 +17,7 @@ import { useSuggest, SuggestBox } from '../lib/Suggest';
 import { useLongPress } from '../lib/useLongPress';
 import { SelectBar, CheckMark } from '../lib/ActionSheet';
 import { cn } from '../lib/utils';
+import { pushBack } from '../lib/backStack';
 import { LongPressTip, useTipOnce } from '../lib/LongPressTip';
 
 /* ---------- 主页面 ---------- */
@@ -68,6 +69,21 @@ export function PersonsPage() {
 
   const exitSelect = () => setSel(new Set());
 
+  /* 返回键优先级：多选模式下先退出多选，而不是返回上一个页面。
+     这与原生 Android 一致（选中的Checkbox 状态属于「临时模式」，
+     返回应该先撤销模式）。 */
+  useEffect(() => {
+    if (!selecting) return;
+    return pushBack({
+      priority: 'mode',
+      label: 'multi-select',
+      handler: () => {
+        exitSelect();
+        return true;
+      },
+    });
+  }, [selecting]);
+
   const toggleSel = (id: string) => {
     setSel((prev) => {
       const n = new Set(prev);
@@ -111,10 +127,14 @@ export function PersonsPage() {
 
   return (
     <>
+      {/* 按 Material Design 3 规范：底部 Tab 的四个根页面属于「顶层目的地」，
+          顶栏不显示返回箭头。返回箭头只用于层级导航的子页面
+          （万年黄历 / 吉日良辰 / 太岁 / 亲缘 / 待办）。
+          之前这里错误地加了 onBack，从 Tab 切过来时顶栏会突然冒出
+          一个返回箭头，点它会退回上一个 Tab —— 语义不对。 */}
       <TopBar
         title="人员"
         sub={`${db.persons.length} 人 · 有往来 ${withDebt.length} 人`}
-        onBack={() => nav(-1)}
         right={
           /* 全选入口：解决「用户不知道能批量操作」的可发现性 */
           list.length > 0 && !selecting ? (
@@ -130,7 +150,7 @@ export function PersonsPage() {
         }
       />
 
-      <div className="px-3 pt-3 pb-24 space-y-3">
+      <div className="page-body space-y-3">
         {!selecting && (
           <LongPressTip show={tip.show} role="人员" onClose={tip.dismiss} />
         )}
@@ -252,11 +272,16 @@ export function PersonsPage() {
         <button
           onClick={() => setEdit('new')}
           aria-label="新增人员"
-          className="fixed right-3 bottom-[64px] w-12 h-12 rounded-full bg-accent text-white
-                     flex items-center justify-center shadow-lg shadow-black/15 active:scale-95
-                     transition-transform z-30"
+          className="fab fixed right-3 w-14 h-14 rounded-full bg-accent text-white
+                     flex items-center justify-center shadow-lg shadow-black/20
+                     active:scale-95 transition-transform z-30"
+          style={{ bottom: 'calc(var(--h-tab) + var(--sab) + 16px)' }}
         >
-          <span className="text-[var(--f-num)] leading-none font-light">+</span>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" strokeWidth={2.6}
+               strokeLinecap="round" aria-hidden>
+            <path d="M12 5v14" /><path d="M5 12h14" />
+          </svg>
         </button>
       )}
 
@@ -571,7 +596,7 @@ function PersonDetail({
               删除成了小方块，视觉失衡且容易误触。
               1:4.5 符合 M3「次要操作不小于主要的 1/4」。 */}
           <button
-            className="btn-ghost btn-danger w-16 shrink-0"
+            className="btn-danger w-16 shrink-0"
             onClick={() => onDelete(person, stat.records.length)}
             aria-label="删除这个人和它的全部记录"
           >删除</button>

@@ -38,7 +38,7 @@ export function AlmanacPage() {
         }
       />
 
-      <div className="px-3 pt-3 pb-24 space-y-3">
+      <div className="page-body space-y-3">
         {/* 月份头 */}
         <div className="card px-3 py-2.5 flex items-center justify-between">
           <button onClick={() => shift(-1)} className="w-8 h-[var(--h-ctl)] flex items-center justify-center

@@ -1,7 +1,7 @@
 /** 版本、作者与更新日志 */
 
 /** 应用版本号 */
-export const VERSION = '2.9.0';
+export const VERSION = '2.10.0';
 
 /** 作者（显示在「关于」页与各版本更新日志末尾） */
 export const AUTHOR = '陈洪涛';
@@ -14,6 +14,22 @@ export const COPYRIGHT =
 export const VERSION_LABEL = `v${VERSION}　${COPYRIGHT}`;
 
 export const CHANGELOG: { ver: string; items: string[] }[] = [
+  {
+    ver: '2.10.0',
+    items: [
+      '修复返回键：弹层/确认框/多选打开时按返回不再直接退出应用',
+      '支持三键导航与手势导航，两种方式的返回行为完全一致',
+      '按 Android 15 规范改用 OnBackPressedCallback 拦截返回（原KeyCode 方式已失效）',
+      '主页面返回改为「再按一次退出」两段式确认，防误触',
+      '二级页面返回上一级不再需要先退到功能页',
+      '按 Material Design 3 规范调整返回箭头：Tab 根页不显示，二级页才显示',
+      '修复安全区：顶栏不再被状态栏遮挡，内容不再被 Tab 栏压住',
+      '重做应用图标（原先是系统默认的机器人占位图）',
+      '删除按钮全应用统一红色醒目样式，修复「删除」二字被挤没的问题',
+      '新建按钮加号放大到26px，圆形加大到 56px，一眼能看出是新建',
+      '金额输入框直接调起数字键盘（原先弹的是带字母的键盘）',
+    ],
+  },
   {
     ver: '2.9.0',
     items: [

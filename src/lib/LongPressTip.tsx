@@ -89,18 +89,22 @@ export function LongPressTip({
     >
       <Hand size={17} strokeWidth={1.8} className="text-accent shrink-0 mt-0.5" />
       <div className="flex-1 min-w-0 text-[var(--f-sm)] leading-relaxed">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <MousePointerClick size={12} strokeWidth={2} className="text-ink-3" />
-          <span>短按</span>
-          <span className="text-ink-3">打开详情</span>
-          <span className="text-ink-3 mx-0.5">·</span>
-          <Hand size={12} strokeWidth={2.2} className="text-accent" />
-          <span>长按</span>
-          <span className="text-ink-3">可多选、批量删除</span>
+        {/* 两个手势各占一行，不要挤在同一行 ——
+            「可多选、批量删除」文案较长，同行排列会折行成两半，
+            读起来断裂（截图确认过）。 */}
+        <div className="flex items-center gap-1.5">
+          <MousePointerClick size={12} strokeWidth={2} className="text-ink-3 shrink-0" />
+          <span className="shrink-0">短按</span>
+          <span className="text-ink-3 truncate">打开详情</span>
         </div>
-        <div className="text-[var(--f-xs)] text-ink-3 mt-1">
-          长按半秒左右选中这条，之后可继续点选其它条目批量处理。
-          顶部有「全选」可一键选中全部。滑动列表不会误触发。
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <Hand size={12} strokeWidth={2.2} className="text-accent shrink-0" />
+          <span className="shrink-0">长按</span>
+          <span className="text-ink-3 truncate">选中这条，可继续点选其它条目</span>
+        </div>
+        <div className="text-[var(--f-xs)] text-ink-3 mt-1.5 leading-relaxed">
+          顶部有「全选」可一键选中全部；滑动列表不会误触发。
+          多选时按返回键会先退出多选，不会离开本页。
         </div>
       </div>
       <button

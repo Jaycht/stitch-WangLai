@@ -17,6 +17,7 @@ import { LEAD_OPTIONS, scheduleOne, cancelOne, dueReminders, canNotify } from '.
 import { useLongPress } from '../lib/useLongPress';
 import { SelectBar, CheckMark } from '../lib/ActionSheet';
 import { cn } from '../lib/utils';
+import { pushBack } from '../lib/backStack';
 import { LongPressTip, useTipOnce } from '../lib/LongPressTip';
 
 const chLabel = (k: string) => CHANNELS.find((c) => c.key === k)?.label ?? k;
@@ -40,6 +41,21 @@ export function RecordsPage() {
   const [batchDel, setBatchDel] = useState(false);
 
   const exitSelect = () => setSel(new Set());
+
+  /* 返回键优先级：多选模式下先退出多选，而不是返回上一个页面。
+     这与原生 Android 一致（选中的Checkbox 状态属于「临时模式」，
+     返回应该先撤销模式）。 */
+  useEffect(() => {
+    if (!selecting) return;
+    return pushBack({
+      priority: 'mode',
+      label: 'multi-select',
+      handler: () => {
+        exitSelect();
+        return true;
+      },
+    });
+  }, [selecting]);
 
   const toggleSel = (id: string) => {
     setSel((prev) => {
@@ -158,7 +174,7 @@ export function RecordsPage() {
         }
       />
 
-      <div className="px-3 pt-3 pb-24 space-y-3">
+      <div className="page-body space-y-3">
         {/* 待提醒条 */}
         {due.length > 0 && (
           <div className="rounded-lg border border-accent-line bg-accent-soft/60 px-2.5 py-2">
@@ -325,11 +341,16 @@ export function RecordsPage() {
         <button
           onClick={() => setEdit('new')}
           aria-label="记一笔"
-          className="fixed right-3 bottom-[64px] w-12 h-12 rounded-full bg-accent text-white
-                     flex items-center justify-center shadow-lg shadow-black/15 active:scale-95
-                     transition-transform z-30"
+          className="fab fixed right-3 w-14 h-14 rounded-full bg-accent text-white
+                     flex items-center justify-center shadow-lg shadow-black/20
+                     active:scale-95 transition-transform z-30"
+          style={{ bottom: 'calc(var(--h-tab) + var(--sab) + 16px)' }}
         >
-          <span className="text-[var(--f-num)] leading-none font-light">+</span>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" strokeWidth={2.6}
+               strokeLinecap="round" aria-hidden>
+            <path d="M12 5v14" /><path d="M5 12h14" />
+          </svg>
         </button>
       )}
 
@@ -342,7 +363,7 @@ export function RecordsPage() {
             <>
               删除后无法恢复。
               {delCountWithRemind > 0 && (
-                <div className="mt-1 text-[#8E2A22]">
+                <div className="mt-1 text-[#C62828]">
                   其中 {delCountWithRemind} 条设过酒席提醒，提醒也会一并取消。
                 </div>
               )}
@@ -607,7 +628,7 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
       footer={
         <>
           {!isNew && (
-            <button className="btn-ghost btn-danger w-11" onClick={deleteRec} aria-label="删除">删</button>
+            <button className="btn-danger w-16 shrink-0" onClick={deleteRec}>删除</button>
           )}
           <button className="btn flex-1" onClick={save} disabled={!canSave}>
             {canSave ? '保存' : '填人和金额'}
@@ -875,13 +896,28 @@ function SideEditor({
       <div className="flex items-end gap-2">
         <div className="flex-1 min-w-0">
           <label className="label">金额（元）</label>
+          {/* 金额框：不要用 type="number" ——
+              它会覆盖 inputMode，Android 弹出的是带字母的键盘。
+              只用 inputMode="decimal" 才能稳定调起数字键盘，
+              且允许输入小数点。type="text" + pattern 兼容性最好。*/}
           <input
             className="field num font-semibold h-10"
             style={{ fontSize: 16, color: 'var(--color-ink)' }}
-            type="number"
+            type="text"
             inputMode="decimal"
-            value={side.amount || ''}
-            onChange={(e) => onChange({ amount: parseFloat(e.target.value) || 0 })}
+            pattern="[0-9]*[.,]?[0-9]*"
+            enterKeyHint="done"
+            value={side.amount === 0 ? '' : String(side.amount)}
+            onChange={(e) => {
+              // 过滤掉非数字与小数点（兼容用户输入全角句号）
+              const raw = e.target.value.replace(/[^\d.]/g, '');
+              // 只保留一个小数点
+              const parts = raw.split('.');
+              const v = parts.length > 2
+                ? `${parts[0]}.${parts.slice(1).join('')}`
+                : raw;
+              onChange({ amount: parseFloat(v) || 0 });
+            }}
             placeholder="0.00"
           />
         </div>

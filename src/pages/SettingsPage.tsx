@@ -137,7 +137,7 @@ export function SettingsPage() {
     <>
       <TopBar title="我的" sub={VERSION_LABEL} />
 
-      <div className="px-3 pt-3 pb-24 space-y-3.5">
+      <div className="page-body space-y-3.5">
         {/* 数据概览 */}
         <div className="card px-3.5 py-3">
           <div className="flex items-center justify-between">
@@ -496,11 +496,11 @@ function RowBtn({
       disabled={disabled}
       className="row w-full text-left active:bg-paper disabled:opacity-40 disabled:pointer-events-none"
     >
-      <span className={cn('shrink-0', danger ? 'text-[#8E2A22]' : 'text-ink-3')}>
+      <span className={cn('shrink-0', danger ? 'text-[#C62828]' : 'text-ink-3')}>
         {icon}
       </span>
       <div className="flex-1 min-w-0">
-        <div className={cn('text-[var(--f-md)]', danger && 'text-[#8E2A22]')}>{title}</div>
+        <div className={cn('text-[var(--f-md)]', danger && 'text-[#C62828]')}>{title}</div>
         {desc && <div className="text-[var(--f-xs)] text-ink-3 mt-0.5">{desc}</div>}
       </div>
       <ChevronRight size={15} strokeWidth={1.8} className="text-ink-3 shrink-0" />

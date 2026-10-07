@@ -46,6 +46,11 @@ jobs:
             echo "警告：未找到签名文件，本次只出测试包（debug）"
           fi
 
+      - name: Ensure gradlew is executable
+        # Windows 提交的文件没有 Unix 执行位，
+        # 在 Linux runner 上会报 "./gradlew: Permission denied"
+        run: chmod +x android/gradlew
+
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug

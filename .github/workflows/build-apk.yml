@@ -33,7 +33,10 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          # 必须是 21：@capacitor/android 8.x 的 build.gradle 里写死了
+          # sourceCompatibility/targetCompatibility = JavaVersion.VERSION_21，
+          # 用 17 会报 "error: invalid source release: 21"
+          java-version: '21'
 
       - name: Check signing files
         # 没密钥就只出 debug 包，保证 workflow 不会莫名失败

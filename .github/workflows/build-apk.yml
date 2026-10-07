@@ -16,7 +16,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Capacitor 8 CLI 要求 Node >= 22.0.0，
+          # 用20 会直接报 "The Capacitor CLI requires NodeJS >=22.0.0"
+          node-version: '22'
 
       - name: Install dependencies
         run: npm ci

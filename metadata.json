@@ -1,6 +1,6 @@
 {
   "name": "往来礼记",
-  "description": "专业、精致的数字化礼金管理账本，支持多场景切换、数据统计与备份。",
+  "description": "人情往来记账。收礼与回礼双向记录，算得出净人情；含万年黄历、吉日良辰、太岁查询与亲缘称呼计算。数据全部存本机，可导出备份。",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

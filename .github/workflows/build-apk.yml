@@ -33,12 +33,42 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Build APK
+      - name: Check signing files
+        # 没密钥就只出 debug 包，保证 workflow 不会莫名失败
+        run: |
+          if [ -f android/keystore.properties ] && [ -f android/wanglai-release.p12 ]; then
+            echo "HAS_KEYSTORE=true" >> $GITHUB_ENV
+            echo "使用正式签名构建"
+          else
+            echo "HAS_KEYSTORE=false" >> $GITHUB_ENV
+            echo "警告：未找到签名文件，本次只出测试包（debug）"
+          fi
+
+      - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug
 
-      - name: Upload APK
+      - name: Build release APK
+        if: env.HAS_KEYSTORE == 'true'
+        working-directory: android
+        run: ./gradlew assembleRelease
+
+      - name: Collect APKs
+        run: |
+          VER=$(grep -oE '"[0-9]+\.[0-9]+\.[0-9]+"' android/app/build.gradle | head -1 | tr -d '"')
+          [ -z "$VER" ] && VER="2.9.0"
+          mkdir -p apk-out
+          cp android/app/build/outputs/apk/debug/app-debug.apk \
+             "apk-out/往来礼记-v${VER}-测试版.apk"
+          if [ "$HAS_KEYSTORE" = "true" ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk \
+               "apk-out/往来礼记-v${VER}-正式版.apk"
+          fi
+          ls -la apk-out/
+
+      - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
           name: 往来礼记-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: apk-out/*.apk
+          if-no-files-found: error

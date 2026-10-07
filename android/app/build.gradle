@@ -7,8 +7,8 @@ android {
         applicationId "com.lijiang.giftbook"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 11
+        versionName "2.9.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +16,30 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            // 签名配置从 android/keystore.properties 读。
+            // 文件不在就退回 debug 签名 —— 保证任何人 clone 下来都能构建，
+            // 不会因为缺密钥文件而失败。
+            def ksFile = rootProject.file('keystore.properties')
+            if (ksFile.exists()) {
+                def props = new Properties()
+                props.load(new FileInputStream(ksFile))
+                storeFile = rootProject.file('wanglai-release.p12')
+                storePassword = props['storePassword']
+                keyAlias = props['keyAlias']
+                keyPassword = props['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig rootProject.file('keystore.properties').exists()
+                ? signingConfigs.release
+                : signingConfigs.debug
         }
     }
 }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 自适应图标背景：与应用内 paper 底色同色系。
-         注意：XML 注释里禁止出现双连字符，会导致文件不合法 -->
-    <color name="ic_launcher_background">#E9F0EC</color>
+    <!-- 自适应图标背景：暖白微红，衬托礼金单红前景。
+         注意：XML 注释里禁止出现双连字符 -->
+    <color name="ic_launcher_background">#FAF0EE</color>
 </resources>

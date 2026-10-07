@@ -13,9 +13,9 @@ BASE = r"E:\Deployment\WorkBuddy\往来礼记"
 RES = os.path.join(BASE, "android", "app", "src", "main", "res")
 
 # 应用主色（青瓷绿）
-ACCENT = (47, 107, 79)
-ACCENT_DARK = (36, 87, 64)
-PAPER = (233, 240, 236)
+ACCENT = (183, 46, 40)          # 礼金单红
+ACCENT_DARK = (145, 32, 28)     # 加深的暗红
+PAPER = (250, 240, 238)          # 暖白微红
 CARD = (255, 255, 255)
 INK = (28, 36, 32)
 

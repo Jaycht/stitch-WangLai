@@ -17,6 +17,7 @@ import { LEAD_OPTIONS, scheduleOne, cancelOne, dueReminders, canNotify } from '.
 import { useLongPress } from '../lib/useLongPress';
 import { SelectBar, CheckMark } from '../lib/ActionSheet';
 import { cn } from '../lib/utils';
+import { FieldGroup } from '../lib/FieldGroup';
 import { pushBack } from '../lib/backStack';
 import { LongPressTip, useTipOnce } from '../lib/LongPressTip';
 
@@ -637,7 +638,10 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
       }
     >
       <div className="space-y-3.5">
-        {/* ---- 人员 ---- */}
+        {/* ========== 第 1 组：基本信息 ==========
+            姓名 + 金额 + 日期 = 一次记账的核心动作，
+            必须最先填、最显眼。 */}
+        <FieldGroup title="基本信息">
         <div>
           <label className="label">对方姓名</label>
           <input
@@ -718,23 +722,74 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
             </div>
           )}
         </div>
+        </FieldGroup>
 
         <div className="h-px bg-line" />
 
-        {/* ---- 收礼侧 ---- */}
-        <SideEditor
-          title="收礼（对方办的）"
-          side={received}
-          onChange={setR}
-          tone="in"
-        />
+        {/* ========== 第 2 组：礼金与日期 ==========
+            金额是必填项，日期跟它同属「这笔什么时候记的」，
+            放一起最顺。 */}
+        <FieldGroup title="礼金与日期">
+          <SideEditor
+            title="收礼（对方办的）"
+            side={received}
+            onChange={setR}
+            tone="in"
+            compact
+          />
+          <div>
+            <label className="label">日期</label>
+            <input
+              className="field"
+              type="date"
+              value={received.date}
+              onChange={(e) => setR({ date: e.target.value })}
+            />
+          </div>
+        </FieldGroup>
 
-        <div className="h-px bg-line" />
+        {/* ========== 第 3 组：事由与地点 ==========
+            这两个是「这笔钱是干嘛的」的补充说明。 */}
+        <FieldGroup title="事由与地点">
+          <div>
+            <label className="label">事由</label>
+            <EventPicker
+              value={received.event}
+              onChange={(k) => setR({ event: k as EventKind })}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2 care-grid-2">
+            <div>
+              <label className="label">地点 / 办方</label>
+              <input
+                className="field"
+                value={received.place ?? ''}
+                onChange={(e) => setR({ place: e.target.value })}
+                placeholder="如：女方家·沂源"
+              />
+            </div>
+            <div>
+              <label className="label">礼物</label>
+              <input
+                className="field"
+                value={received.gift ?? ''}
+                onChange={(e) => setR({ gift: e.target.value })}
+                placeholder="如：两瓶酒"
+              />
+            </div>
+          </div>
+        </FieldGroup>
 
-        {/* ---- 回礼侧 ---- */}
+        {/* ========== 第 4 组：回礼（可选，单独成组）============
+            单独拆出来的理由：回礼**大多数时候为空**，
+            混在其它组里会让那一片空旷；
+            而且「收」和「回」本来就是两个方向的动作。 */}
+        <FieldGroup
+          title="回礼（我方办的）"
+          hint={returned ? undefined : '可选'}
+        >
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[var(--f-sm)] font-medium text-ink-2">回礼（我方办的）</span>
             {!returned && (
               <button
                 onClick={() => setReturned(blankSide({ date: received.date }))}
@@ -758,10 +813,11 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
             </div>
           )}
         </div>
+        </FieldGroup>
 
-        <div className="h-px bg-line" />
-
-        {/* ---- 酒席提醒 ---- */}
+        {/* ========== 第 5 组：提醒与备注 ==========
+            都是记完之后补充的，不是记这笔的必需信息，放最后。 */}
+        <FieldGroup title="提醒与备注">
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[var(--f-sm)] font-medium text-ink-2 flex items-center gap-1.5">
@@ -830,9 +886,7 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
           )}
         </div>
 
-        <div className="h-px bg-line" />
-
-        {/* ---- 备注 ---- */}
+        {/* 备注 */}
         <div>
           <label className="label">备注</label>
           <textarea
@@ -845,6 +899,7 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
             placeholder={remarkHint || '如：随礼事项、地点、礼金明细'}
           />
         </div>
+        </FieldGroup>
       </div>
 
       {/* 选已有同名档案 */}
@@ -879,13 +934,19 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
 /* ---------- 单边编辑器 ---------- */
 
 function SideEditor({
-  title, side, onChange, tone, onRemove,
+  title, side, onChange, tone, onRemove, compact,
 }: {
   title: string;
   side: Side;
   onChange: (p: Partial<Side>) => void;
   tone: 'in' | 'out';
   onRemove?: () => void;
+  /**
+   * 精简模式：只显示「金额 + 渠道」。
+   * 日期/事由/地点交给外层的 FieldGroup 统一组织，
+   * 否则一组卡片里塞八个字段又变回糊状。
+   */
+  compact?: boolean;
 }) {
   const [chOpen, setChOpen] = useState(false);
 
@@ -952,6 +1013,8 @@ function SideEditor({
         </Sheet>
       )}
 
+      {!compact && (
+      <>
       <div className="mt-2.5">
         <label className="label">日期</label>
         <input
@@ -990,6 +1053,8 @@ function SideEditor({
           />
         </div>
       </div>
+      </>
+      )}
 
       {onRemove && (
         <button onClick={onRemove} className="btn-ghost btn-sm mt-2.5 w-full">

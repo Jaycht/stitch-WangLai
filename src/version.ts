@@ -1,7 +1,7 @@
 /** 版本、作者与更新日志 */
 
 /** 应用版本号 */
-export const VERSION = '2.12.0';
+export const VERSION = '2.13.0';
 
 /** 作者（显示在「关于」页与各版本更新日志末尾） */
 export const AUTHOR = '陈洪涛';
@@ -14,6 +14,14 @@ export const COPYRIGHT =
 export const VERSION_LABEL = `v${VERSION}　${COPYRIGHT}`;
 
 export const CHANGELOG: { ver: string; items: string[] }[] = [
+  {
+    ver: '2.13.0',
+    items: [
+      '应用图标改为礼金单红，更贴合人情往来的主题',
+      '「记一笔」面板按类别分组为五张卡片，不再是十四个字段平铺',
+      '分组为：基本信息 / 礼金与日期 / 事由与地点 / 回礼 / 提醒与备注',
+    ],
+  },
   {
     ver: '2.12.0',
     items: [

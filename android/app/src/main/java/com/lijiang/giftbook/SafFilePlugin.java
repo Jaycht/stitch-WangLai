@@ -1,22 +1,21 @@
 package com.lijiang.giftbook;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.provider.DocumentsContract;
 
 import androidx.activity.result.ActivityResult;
-import androidx.activity.result.ActivityResultCallback;
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -25,7 +24,7 @@ import java.nio.charset.StandardCharsets;
  * ==================== 为什么要自己写 ====================
  *
  * 涛哥要求「导出到 Download、提示写明路径、支持自定义目录、恢复时定位到备份目录」。
- * 我先查了 @capacitor/filesystem 插件能不能做，结论是**不行**：
+ * 我先查了 @capacitor/filesystem 能不能做，结论是**不行**：
  *
  *   Directory.ExternalStorage 的官方文档原文：
  *   "On Android 10 it's not accessible unless the app enables legacy
@@ -43,45 +42,36 @@ import java.nio.charset.StandardCharsets;
  * 好处：
  *   1. **零存储权限** —— 用户通过系统对话框授权，绕开权限墙
  *   2. **用户可以选任意目录** —— 满足「自定义导出路径」
- *   3. **能拿到真实路径** —— 满足「提示写明导出位置」
+ *   3. **能拿到真实文件名** —— 满足「提示写明导出位置」
  *   4. **恢复时可定位目录** —— 用 EXTRA_INITIAL_URI 直接打开上次导出的文件夹
  *
- * ACTION_CREATE_DOCUMENT → 导出（另存为）
- * ACTION_OPEN_DOCUMENT   → 恢复（选择已有文件）
+ * ==================== 一处踩过的坑 ====================
+ *
+ * 我第一版写的是：
+ *     createLauncher = registerForActivityResult(
+ *         new ActivityResultContracts.StartActivityForResult(), ...);
+ *
+ * 编译直接失败：
+ *     error: cannot find symbol
+ *     symbol: method registerForActivityResult(...)
+ *     location: class SafFilePlugin
+ *
+ * 原因：**registerForActivityResult 是 ComponentActivity / Fragment 的方法，
+ * Capacitor 的 Plugin 类没有这个方法**（它只是普通 Java 类，不是 Activity）。
+ *
+ * 正确做法是用 Capacitor 自己封的那一套：
+ *     startActivityForResult(call, intent, "callbackName");   启动
+ *     @ActivityCallback
+ *     private void handleXxx(PluginCall call, ActivityResult result) { }
+ *
+ * 而且 startActivityForResult 内部会 bridge.saveCall(call)，
+ * **PluginCall 会自动带回回调**，不需要自己用字段存。
  */
 @CapacitorPlugin(name = "SafFile")
 public class SafFilePlugin extends Plugin {
 
-    /** 导出时的待写内容。选好路径后回调里真正落盘。 */
-    private String pendingContent;
-    private PluginCall pendingCall;
+    /** 上次操作所在目录，导出/恢复都用它定位（满足「恢复时打开备份文件夹」） */
     private String lastDirUri;
-
-    private ActivityResultLauncher<Intent> createLauncher;
-    private ActivityResultLauncher<Intent> openLauncher;
-
-    @Override
-    public void load() {
-        // 导出：系统「另存为」对话框
-        createLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                new ActivityResultCallback<ActivityResult>() {
-                    @Override
-                    public void onActivityResult(ActivityResult result) {
-                        handleCreateResult(result);
-                    }
-                });
-
-        // 恢复：系统文件选择器
-        openLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                new ActivityResultCallback<ActivityResult>() {
-                    @Override
-                    public void onActivityResult(ActivityResult result) {
-                        handleOpenResult(result);
-                    }
-                });
-    }
 
     /* ==================== 导出 ==================== */
 
@@ -90,71 +80,49 @@ public class SafFilePlugin extends Plugin {
      *
      * @param filename 预填的文件名（用户可改）
      * @param mime     MIME 类型
-     * @param content  文件内容的字符串形式
+     * @param content  文件内容
      */
     @PluginMethod
     public void saveAs(PluginCall call) {
-        String filename = call.getString("filename", "backup.json");
-        String mime = call.getString("mime", "application/json");
-        String content = call.getString("content", "");
-
         if (getActivity() == null) {
             call.reject("没有活动上下文，无法调起文件选择器");
             return;
         }
-
-        pendingContent = content;
-        pendingCall = call;
+        String filename = call.getString("filename", "backup.json");
+        String mime = call.getString("mime", "application/json");
 
         Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         // 必须带这一行，否则部分机型只显示「新建文件夹」而看不到保存按钮
         i.addCategory(Intent.CATEGORY_OPENABLE);
         i.setType(mime);
         i.putExtra(Intent.EXTRA_TITLE, filename);
-        // 定位到上次导出的目录，减少用户翻目录的次数
         if (lastDirUri != null) {
             i.putExtra(DocumentsContract.EXTRA_INITIAL_URI, Uri.parse(lastDirUri));
         }
-
-        try {
-            createLauncher.launch(i);
-        } catch (Exception e) {
-            pendingCall = null;
-            call.reject("调起文件选择器失败：" + e.getMessage());
-        }
+        startActivityForResult(call, i, "handleSaveResult");
     }
 
-    private void handleCreateResult(ActivityResult result) {
-        PluginCall call = pendingCall;
-        String content = pendingContent;
-        pendingCall = null;
-        pendingContent = null;
-        if (call == null) return;
-
+    @ActivityCallback
+    private void handleSaveResult(PluginCall call, ActivityResult result) {
         Uri uri = result.getData() == null ? null : result.getData().getData();
-        if (result.getResultCode() != Activity.RESULT_OK || uri == null) {
+        if (result.getResultCode() != android.app.Activity.RESULT_OK || uri == null) {
             // 用户取消 —— 不是错误，正常返回
             JSObject ret = new JSObject();
             ret.put("canceled", true);
             call.resolve(ret);
             return;
         }
-
         try {
-            // 记住所在目录，下次导出/恢复直接定位过去
-            String parent = uri.toString();
-            int slash = parent.lastIndexOf('/');
-            lastDirUri = slash > 0 ? parent.substring(0, slash) : null;
-
-            // "wt" = write + truncate
-            try (OutputStreamHolder holder = new OutputStreamHolder(
-                    getContext().getContentResolver().openOutputStream(uri, "wt"))) {
-                holder.write(content);
+            rememberParent(uri);
+            String content = call.getString("content", "");
+            try (OutputStream os = getContext().getContentResolver().openOutputStream(uri, "wt")) {
+                if (os == null) throw new IllegalStateException("无法写入所选位置");
+                os.write(content.getBytes(StandardCharsets.UTF_8));
+                os.flush();
             }
-
             JSObject ret = new JSObject();
             ret.put("canceled", false);
-            // 把真实路径告诉前端，界面要显示给用户看
+            // 真实文件名，界面要显示给用户看
             ret.put("name", displayName(uri));
             ret.put("uri", uri.toString());
             call.resolve(ret);
@@ -168,9 +136,8 @@ public class SafFilePlugin extends Plugin {
     /**
      * 调起系统文件选择器读取文件。
      *
-     * @param mime 可接受的类型；备份传 "application/json"，
-     *             但很多文件管理器会把 .json 归到 octet-stream，
-     *             所以用 * / * 加扩展名过滤更稳
+     * MIME 用 * / * 加 EXTRA_MIME_TYPES 过滤：很多文件管理器会把 .json
+     * 归到 text/plain 或 octet-stream，只传 application/json 会漏掉。
      */
     @PluginMethod
     public void pick(PluginCall call) {
@@ -178,52 +145,37 @@ public class SafFilePlugin extends Plugin {
             call.reject("没有活动上下文，无法调起文件选择器");
             return;
         }
-        pendingCall = call;
-
         Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         i.addCategory(Intent.CATEGORY_OPENABLE);
-        // 用 * / * 再靠 EXTRA_MIME_TYPES 过滤，只用 json 会漏掉
-        // 某些机型上被标成 text/plain 或 octet-stream 的 .json 文件
         i.setType("*/*");
         i.putExtra(Intent.EXTRA_MIME_TYPES,
                 new String[]{"application/json", "text/plain", "text/csv", "*/*"});
-        // 定位到上次导出目录 —— 满足涛哥「恢复时默认打开备份文件夹」
         if (lastDirUri != null) {
             i.putExtra(DocumentsContract.EXTRA_INITIAL_URI, Uri.parse(lastDirUri));
         }
-
-        try {
-            openLauncher.launch(i);
-        } catch (Exception e) {
-            pendingCall = null;
-            call.reject("调起文件选择器失败：" + e.getMessage());
-        }
+        startActivityForResult(call, i, "handlePickResult");
     }
 
-    private void handleOpenResult(ActivityResult result) {
-        PluginCall call = pendingCall;
-        pendingCall = null;
-        if (call == null) return;
-
+    @ActivityCallback
+    private void handlePickResult(PluginCall call, ActivityResult result) {
         Uri uri = result.getData() == null ? null : result.getData().getData();
-        if (result.getResultCode() != Activity.RESULT_OK || uri == null) {
+        if (result.getResultCode() != android.app.Activity.RESULT_OK || uri == null) {
             JSObject ret = new JSObject();
             ret.put("canceled", true);
             call.resolve(ret);
             return;
         }
-
         try {
-            String parent = uri.toString();
-            int slash = parent.lastIndexOf('/');
-            lastDirUri = slash > 0 ? parent.substring(0, slash) : null;
-
+            rememberParent(uri);
             String text;
             try (InputStream in = getContext().getContentResolver().openInputStream(uri)) {
                 if (in == null) throw new IllegalStateException("无法读取所选文件");
-                text = readAll(in);
+                ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = in.read(buf)) > 0) bos.write(buf, 0, n);
+                text = new String(bos.toByteArray(), StandardCharsets.UTF_8);
             }
-
             JSObject ret = new JSObject();
             ret.put("canceled", false);
             ret.put("name", displayName(uri));
@@ -237,50 +189,30 @@ public class SafFilePlugin extends Plugin {
 
     /* ==================== 辅助 ==================== */
 
-    /** 用户可读的路径提示。SAF 的 content URI 不可直接展示，转成能看懂的形式。 */
+    /** 记住所在目录，下次导出/恢复直接定位过去 */
+    private void rememberParent(Uri uri) {
+        String s = uri.toString();
+        int slash = s.lastIndexOf('/');
+        lastDirUri = slash > 0 ? s.substring(0, slash) : null;
+    }
+
+    /** 用户可读的文件名。SAF 的 content URI 不可直接展示，要转成能看懂的形式。 */
     private String displayName(Uri uri) {
-        String name = queryDisplayName(uri);
+        String name = null;
+        try (android.database.Cursor c = getContext().getContentResolver()
+                .query(uri, null, null, null, null)) {
+            if (c != null && c.moveToFirst()) {
+                int idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
+                if (idx >= 0) name = c.getString(idx);
+            }
+        } catch (Exception ignored) {
+            // 部分第三方文件管理器不支持查询，忽略
+        }
         if (name == null || name.isEmpty()) {
-            // 部分第三方文件管理器不支持查询 DISPLAY_NAME，退回 URI 尾段
             String s = uri.toString();
             int slash = s.lastIndexOf('/');
             name = slash >= 0 ? s.substring(slash + 1) : s;
         }
         return name;
-    }
-
-    private String queryDisplayName(Uri uri) {
-        try (android.database.Cursor c = getContext().getContentResolver()
-                .query(uri, null, null, null, null)) {
-            if (c != null && c.moveToFirst()) {
-                int idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME);
-                if (idx >= 0) return c.getString(idx);
-            }
-        } catch (Exception ignored) {
-            // 部分提供器不支持查询，忽略
-        }
-        return null;
-    }
-
-    private static String readAll(InputStream in) throws Exception {
-        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
-        byte[] buf = new byte[8192];
-        int n;
-        while ((n = in.read(buf)) > 0) bos.write(buf, 0, n);
-        return new String(bos.toByteArray(), StandardCharsets.UTF_8);
-    }
-
-    /** 让 try-with-resources 能处理可能为 null 的流 */
-    private static final class OutputStreamHolder implements AutoCloseable {
-        private final java.io.OutputStream os;
-        OutputStreamHolder(java.io.OutputStream os) { this.os = os; }
-        void write(String s) throws Exception {
-            if (os == null) throw new IllegalStateException("无法写入所选位置");
-            os.write(s.getBytes(StandardCharsets.UTF_8));
-            os.flush();
-        }
-        @Override public void close() throws Exception {
-            if (os != null) os.close();
-        }
     }
 }

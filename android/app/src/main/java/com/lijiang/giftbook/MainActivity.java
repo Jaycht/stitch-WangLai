@@ -46,6 +46,15 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        // 手动注册自定义插件。
+        //
+        // 为什么不在 capacitor.plugins.json 里注册：
+        //   那个文件由 `npx cap sync` **自动生成并覆盖**，
+        //   自定义插件写进去下次 sync 就没了。Capacitor 6+
+        //   也取消了 config 里的 plugins 声明能力。
+        //   唯一稳定的位置就是这里。
+        registerPlugin(SafFilePlugin.class);
+
         // 单一职责回调：只管「把返回事件转给 WebView」。
         // 不在这里写任何 if/else 业务判断 —— 官方最佳实践明确说：
         // 「不要在返回事件已经发生后才做条件判断」，

@@ -9,7 +9,10 @@ import {
 import { useApp, useToast } from '../lib/store';
 import { TopBar, Sheet, Section, Confirm } from '../lib/ui';
 import {
-  serializeBackup, backupFileName, toCSV, csvFileName, download, pickFile,
+  serializeBackup, backupFileName, toCSV, csvFileName,
+} from '../lib/backup';
+import { saveAs, pickFile, exportHint, isNativeAndroid } from '../lib/safFile';
+import {
   importBackup, ImportResult, ImportMode, CURRENT_SCHEMA,
 } from '../lib/backup';
 import { migrate } from '../lib/db';
@@ -77,32 +80,51 @@ export function SettingsPage() {
 
   /* ---------- 导出 ---------- */
 
-  const doExportJSON = () => {
+  /* ---------- 导出 ----------
+   * 涛哥第 12 条：原来只弹「已导出」，用户不知道文件落在哪、
+   * 恢复时根本找不到。现在改走系统「另存为」对话框：
+   *   - 用户自己选目录（等于免费得到「自定义导出路径」）
+   *   - 提示写明文件名与大致位置
+   *   - 不需要任何存储权限（Android 11+ 也照样能用）
+   */
+  const [exporting, setExporting] = useState<'json' | 'csv' | null>(null);
+
+  const doExportJSON = async () => {
+    setExporting('json');
     try {
-      download(backupFileName(), serializeBackup(db));
-      show('备份文件已导出');
+      const r = await saveAs(backupFileName(), serializeBackup(db));
+      // 用户取消不是错误，别弹提示
+      if (!r.canceled) show(exportHint(r.name, false));
     } catch (e: any) {
       show('导出失败：' + (e?.message ?? e));
+    } finally {
+      setExporting(null);
     }
   };
 
-  const doExportCSV = () => {
+  const doExportCSV = async () => {
+    setExporting('csv');
     try {
-      download(csvFileName(), toCSV(db), 'text/csv');
-      show('明细 CSV 已导出');
+      const r = await saveAs(csvFileName(), toCSV(db), 'text/csv');
+      if (!r.canceled) show(exportHint(r.name, true));
     } catch (e: any) {
       show('导出失败：' + (e?.message ?? e));
+    } finally {
+      setExporting(null);
     }
   };
 
-  /* ---------- 导入 ---------- */
+  /* ---------- 导入 ----------
+   *
+   * 涛哥第 12 条：恢复时「完全找不到备份文件」。
+   * 真机走 SAF 系统文件选择器，原生侧会用 EXTRA_INITIAL_URI
+   * **默认定位到上次导出的目录**（原生插件里记着 lastDirUri）。
+   * 浏览器降级用隐藏的 <input type=file>，单文件测试版靠它。
+   */
+  const [importing, setImporting] = useState(false);
 
-  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    e.target.value = '';
-    if (!f) return;
-    const text = await f.text();
-    // 先做一次试算，把结果给用户看
+  /** 拿到备份文本后统一走试算→ 展示对比 → 用户选合并/覆盖 */
+  const loadBackupText = (text: string) => {
     const probe = importBackup(text, db, 'merge');
     if (!probe.ok) {
       show(probe.message);
@@ -110,6 +132,26 @@ export function SettingsPage() {
     }
     setPending({ text, mode: 'replace' });
     setImportRes(probe);
+  };
+
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    loadBackupText(await f.text());
+  };
+
+  const doPickBackup = async () => {
+    setImporting(true);
+    try {
+      const r = await pickFile('application/json,.json');
+      if (r.canceled || !r.content) return;
+      loadBackupText(r.content);
+    } catch (e: any) {
+      show('读取失败：' + (e?.message ?? e));
+    } finally {
+      setImporting(false);
+    }
   };
 
   const doImport = (mode: ImportMode) => {
@@ -165,14 +207,31 @@ export function SettingsPage() {
             <RowBtn
               icon={<Download size={16} strokeWidth={1.8} />}
               title="导出备份文件"
-              desc="JSON 全量备份，可再导入还原"
+              desc={
+                exporting === 'json'
+                  ? '正在保存…'
+                  : isNativeAndroid
+                    ? 'JSON 全量备份。点击弹出系统「另存为」，可自选目录'
+                    : 'JSON 全量备份。点击下载到浏览器默认下载目录'
+              }
               onClick={doExportJSON}
             />
             <RowBtn
               icon={<Upload size={16} strokeWidth={1.8} />}
               title="从备份恢复"
-              desc="选择 .json 文件，支持覆盖或合并"
-              onClick={() => fileRef.current?.click()}
+              desc={
+                importing
+                  ? '正在读取…'
+                  : isNativeAndroid
+                    ? '会打开系统文件选择器，自动定位到上次导出的目录'
+                    : '选择之前导出的 JSON 备份文件'
+              }
+              onClick={() => {
+                // 真机：系统文件选择器（能定位到上次导出目录）
+                // 浏览器：隐藏 input，单文件测试版也能用
+                if (isNativeAndroid) void doPickBackup();
+                else fileRef.current?.click();
+              }}
             />
             <RowBtn
               icon={<FileSpreadsheet size={16} strokeWidth={1.8} />}

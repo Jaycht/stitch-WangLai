@@ -1,7 +1,7 @@
 /** 版本、作者与更新日志 */
 
 /** 应用版本号 */
-export const VERSION = '2.10.0';
+export const VERSION = '2.11.0';
 
 /** 作者（显示在「关于」页与各版本更新日志末尾） */
 export const AUTHOR = '陈洪涛';
@@ -14,6 +14,16 @@ export const COPYRIGHT =
 export const VERSION_LABEL = `v${VERSION}　${COPYRIGHT}`;
 
 export const CHANGELOG: { ver: string; items: string[] }[] = [
+  {
+    ver: '2.11.0',
+    items: [
+      '备份导出改为调起系统「另存为」对话框，可自选保存目录',
+      '导出成功后明确提示文件保存位置，不再只说「已导出」',
+      '恢复时调起系统文件选择器，并自动定位到上次导出的目录',
+      '取消导出或取消恢复不再弹错误提示',
+      '全程无需申请存储权限，Android 11及以上系统同样可用',
+    ],
+  },
   {
     ver: '2.10.0',
     items: [

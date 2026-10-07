@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 自适应图标背景：与应用内--paper 同色系 -->
+    <!-- 自适应图标背景：与应用内 paper 底色同色系。
+         注意：XML 注释里禁止出现双连字符，会导致文件不合法 -->
     <color name="ic_launcher_background">#E9F0EC</color>
 </resources>

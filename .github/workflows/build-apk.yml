@@ -46,6 +46,20 @@ jobs:
             echo "警告：未找到签名文件，本次只出测试包（debug）"
           fi
 
+      - name: Cache Gradle
+        # Android 构建要拉 200MB+ 依赖，缓存后每次构建省 3~5 分钟
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Ensure gradlew is executable
         # Windows 提交的文件没有 Unix 执行位，
         # 在 Linux runner 上会报 "./gradlew: Permission denied"

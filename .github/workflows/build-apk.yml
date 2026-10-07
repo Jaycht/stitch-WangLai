@@ -57,7 +57,9 @@ jobs:
 
       - name: Collect APKs
         run: |
-          VER=$(grep -oE '"[0-9]+\.[0-9]+\.[0-9]+"' android/app/build.gradle | head -1 | tr -d '"')
+          # 只在 versionName 那一行里提取，避免抓到别处的数字。
+          # 单行写，不用反斜杠续行 —— YAML 折行会吞掉续行符。
+          VER=$(grep versionName android/app/build.gradle | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
           [ -z "$VER" ] && VER="2.9.0"
           mkdir -p apk-out
           cp android/app/build/outputs/apk/debug/app-debug.apk \

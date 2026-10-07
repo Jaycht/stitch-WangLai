@@ -108,6 +108,8 @@ function Shell() {
   const exitTimer = useRef<number | null>(null);
 
   const atRoot = TAB_ROOTS.includes(loc.pathname);
+  // 只有「记录」是主页面；在其余三个 Tab 按返回要先切回来
+  const atMainTab = loc.pathname === '/';
 
   /* ---------- 注入返回栈的兜底处理 ----------
    *
@@ -128,7 +130,15 @@ function Shell() {
         nav(-1);
         return true;
       }
-      // 根页第一次按：弹提示，本次不放行
+      // 涛哥的要求：**四个 Tab 页里只有「记录」是主页面**。
+      // 在「人员 / 功能 / 我的」按返回，应该先切回「记录」，
+      // 再按一次才弹退出提醒 ——
+      // 这与主流 App 一致（微信/QQ 在非首个 Tab 返回都先回首页）。
+      if (!atMainTab) {
+        nav('/');
+        return true;
+      }
+      // 主页面第一次按：弹提示，本次不放行
       if (exitTimer.current === null) {
         setExitAsk(true);
         setExitPending(false);

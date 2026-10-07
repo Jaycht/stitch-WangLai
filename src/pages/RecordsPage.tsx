@@ -896,16 +896,23 @@ function SideEditor({
       <div className="flex items-end gap-2">
         <div className="flex-1 min-w-0">
           <label className="label">金额（元）</label>
-          {/* 金额框：不要用 type="number" ——
-              它会覆盖 inputMode，Android 弹出的是带字母的键盘。
-              只用 inputMode="decimal" 才能稳定调起数字键盘，
-              且允许输入小数点。type="text" + pattern 兼容性最好。*/}
+          {/* 金额框的键盘类型：试过三种，这是唯一在 WebView 上可靠的。
+               * type="number"        → 一定弹数字键盘，但会覆盖 inputMode，
+               *                         且部分机型没有小数点键
+               * type="text" + inputMode="decimal" → Chrome 有效，
+               *                         **但 Android WebView 支持不稳定，
+               *                         实测弹出的是带字母的键盘**（涛哥反馈）
+               * type="tel"           → 一定弹数字键盘（含数字与符号），
+               *                         WebView 100% 支持，
+               *                         且允许输入小数点（键盘上有 . 键）
+               * 小数点照样能用：onChange 里已做过滤，只保留数字与一个小数点。
+               */}
+
           <input
             className="field num font-semibold h-10"
             style={{ fontSize: 16, color: 'var(--color-ink)' }}
-            type="text"
+            type="tel"
             inputMode="decimal"
-            pattern="[0-9]*[.,]?[0-9]*"
             enterKeyHint="done"
             value={side.amount === 0 ? '' : String(side.amount)}
             onChange={(e) => {

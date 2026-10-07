@@ -42,18 +42,58 @@ import com.getcapacitor.BridgeActivity;
  */
 public class MainActivity extends BridgeActivity {
 
+    /**
+     * 注册自定义插件。
+     *
+     * ============ ⚠️⚠️ 时序是关键 ============
+     *
+     * 我第一版写成在 onCreate 里调 registerPlugin(SafFilePlugin.class)，
+     * 编译通过、装上去运行时报：
+     *     导出失败："SafFile" plugin is not implemented on android
+     *
+     * 原因：看 BridgeActivity 的实现
+     * ```java
+     * protected void onCreate(Bundle) {
+     *     super.onCreate(...);
+     *     ...
+     *     this.load();                 // ← Bridge 在这里就已经建好了
+     * }
+     *
+     * public void registerPlugin(Class<? extends Plugin> plugin) {
+     *     bridgeBuilder.addPlugin(plugin);      // ← 只改 Builder，来不及了
+     * }
+     *
+     * protected void load() {
+     *     bridge = bridgeBuilder.addPlugins(initialPlugins)
+     *                              .setConfig(config).create();
+     * }
+     * ```
+     *
+     * `registerPlugin` 只是往 builder 里塞了个类，
+     * 而 `super.onCreate()` 里已经 `load()` 完并把 Bridge 建出来了 ——
+     * **之后再改Builder 完全无效**。
+     *
+     * ============ 正确做法 ============
+     *
+     * 覆盖 load()，在 `super.load()`（真正建 Bridge）**之前**
+     * 把插件类塞进 `initialPlugins`。这个字段就是 Capacitor 官方
+     * 给自定义插件留的入口。
+     *
+     * ============ 为什么不用 capacitor.plugins.json ============
+     *
+     * 那个文件由 `npx cap sync` **自动生成并覆盖**，
+     * 自定义插件写进去下次 sync 就没了。Capacitor 6+
+     * 也取消了 capacitor.config.ts 里的 plugins 声明能力。
+     */
+    @Override
+    protected void load() {
+        initialPlugins.add(SafFilePlugin.class);
+        super.load();
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        // 手动注册自定义插件。
-        //
-        // 为什么不在 capacitor.plugins.json 里注册：
-        //   那个文件由 `npx cap sync` **自动生成并覆盖**，
-        //   自定义插件写进去下次 sync 就没了。Capacitor 6+
-        //   也取消了 config 里的 plugins 声明能力。
-        //   唯一稳定的位置就是这里。
-        registerPlugin(SafFilePlugin.class);
 
         // 单一职责回调：只管「把返回事件转给 WebView」。
         // 不在这里写任何 if/else 业务判断 —— 官方最佳实践明确说：

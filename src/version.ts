@@ -1,7 +1,7 @@
 /** 版本、作者与更新日志 */
 
 /** 应用版本号 */
-export const VERSION = '2.11.0';
+export const VERSION = '2.12.0';
 
 /** 作者（显示在「关于」页与各版本更新日志末尾） */
 export const AUTHOR = '陈洪涛';
@@ -14,6 +14,17 @@ export const COPYRIGHT =
 export const VERSION_LABEL = `v${VERSION}　${COPYRIGHT}`;
 
 export const CHANGELOG: { ver: string; items: string[] }[] = [
+  {
+    ver: '2.12.0',
+    items: [
+      '修复备份功能：自定义 SAF 插件此前未真正注册，现在可正常导出与恢复',
+      '修复应用图标：此前引用的前景图资源不存在，系统一直回退显示系统默认图标',
+      '「人员/功能/我的」页按返回先切回「记录」页，再按一次才提示退出',
+      '底部 Tab 栏加高到 62px，图标与文字垂直居中不再顶天',
+      'Tab 栏改为磨砂质感：接近不透明的底色加 30px 模糊，页面内容不再透出',
+      '金额输入框改用数字键盘（Android WebView 下 inputMode 不可靠）',
+    ],
+  },
   {
     ver: '2.11.0',
     items: [

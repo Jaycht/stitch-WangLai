@@ -17,6 +17,7 @@ import {
   LEAD_OPTIONS, scheduleOne, cancelOne, canNotify,
   ensurePermission, permAdvice, needExactWarn, type PermStatus,
 } from '../lib/notify';
+import { usePermGuide, PermGuideCard } from '../lib/PermGuide';
 import { useLongPress } from '../lib/useLongPress';
 import { SelectBar, CheckMark } from '../lib/ActionSheet';
 import { cn } from '../lib/utils';
@@ -106,6 +107,9 @@ export function RecordsPage() {
 
   const lookup = useMemo(() => makeEventLookup(db.customEvents), [db.customEvents]);
 
+  // v2.13.1：首次启动主动检测提醒权限，缺则顶部横幅引导（设置页也有常驻入口）
+  const permGuide = usePermGuide(db.settings.notifHintDismissed);
+
   const list = useMemo(() => {
     let rs = db.records;
     if (tab === 'in') rs = rs.filter((r) => (r.received?.amount ?? 0) > 0);
@@ -169,6 +173,18 @@ export function RecordsPage() {
       />
 
       <div className="page-body space-y-3">
+        {/* v2.13.1：权限引导横幅（首次启动检测，缺权限才显示；
+            用户点「不再提示」后不再打扰，但设置页仍有常驻入口）*/}
+        <PermGuideCard
+          st={permGuide.showBanner ? permGuide : { ...permGuide, show: false }}
+          onAskNotify={() => void permGuide.askNotify()}
+          onAskCalendar={() => void permGuide.askCalendar()}
+          onAskAll={() => void permGuide.askAll()}
+          onDismiss={permGuide.dismiss}
+          onRefresh={() => void permGuide.refresh()}
+          compact
+        />
+
         {/*汇总条 */}
         <div className="card px-3.5 py-3">
           <div className="flex items-end gap-1.5">

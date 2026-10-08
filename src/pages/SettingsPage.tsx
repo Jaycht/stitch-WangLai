@@ -21,11 +21,9 @@ import { cn } from '../lib/utils';
 import { VERSION, CHANGELOG, COPYRIGHT, VERSION_LABEL } from '../version';
 import {
   canUseCalendar, syncAll, openCalendarApp,
-  ensurePermission as calEnsurePermission,
 } from '../lib/calendar';
-import {
-  LEAD_OPTIONS, checkPerms, ensurePermission, type PermStatus,
-} from '../lib/notify';
+import { LEAD_OPTIONS } from '../lib/notify';
+import { usePermGuide, PermGuideCard } from '../lib/PermGuide';
 import { ThemePicker, useTheme } from '../lib/theme';
 import { ACCENTS } from '../lib/palette';
 
@@ -70,64 +68,9 @@ export function SettingsPage() {
   }, []);
 
   /* ---------- v2.13.1 权限检测与引导 ----------
-   *
-   * 背景：小米等国产 ROM 对非商店渠道 APK 会判为「敏感应用」，
-   * 安装时就压制了系统的首次权限询问窗口，用户点「设提醒」也没反应。
-   * 厂商提示绕不过去，但权限状态可以主动查、主动引导开。
-   * 用户处理过一次（开了或点了「不再提示」）后不再打扰。
+   * 逻辑已抽到 lib/PermGuide.tsx，首页与设置页共用同一套，避免两处分叉。
    */
-  const [perms, setPerms] = useState<PermStatus | null>(null);
-
-  const refreshPerms = async () => {
-    setPerms(await checkPerms());
-  };
-
-  useEffect(() => {
-    void refreshPerms();
-  }, []);
-
-  /** 是否需要显示权限卡片：缺权限且用户还没选择「不再提示」 */
-  const needPermCard =
-    !!perms?.available &&
-    !db.settings.notifHintDismissed &&
-    (!perms.canPost || !db.settings.calendarAsked);
-
-  /** 主动申请通知权限（系统弹窗能否出现由ROM 决定） */
-  const askNotify = async () => {
-    const r = await ensurePermission();
-    setPerms(r);
-    if (r.canPost) {
-      dispatch({ t: 'settings', s: { notifAsked: true } });
-      show(r.canExact ? '通知已开启' : '通知已开启；精确闹钟未授权，提醒可能延迟几分钟', 3200);
-    } else {
-      // 被 ROM 压制了，只能靠手动去系统设置开
-      show('系统未弹出授权窗口。请到手机「设置 → 应用管理 → 往来礼记 → 通知」手动开启', 4200);
-    }
-  };
-
-  /** 申请日历权限（日历走的是另一套系统授权） */
-  const askCalendar = async () => {
-    const ok = await calEnsurePermission();
-    setCalState((s) => ({ ...s, native: s.native }));
-    if (ok) {
-      dispatch({ t: 'settings', s: { calendarAsked: true } });
-      show('日历权限已开启，提醒可写入系统日历', 3000);
-    } else {
-      show('未获得日历权限，提醒只能靠系统通知', 3000);
-    }
-  };
-
-  /** 一键开启全部（按可靠性从高到低依次尝试） */
-  const askAll = async () => {
-    await askNotify();
-    await askCalendar();
-    await refreshPerms();
-  };
-
-  /** 用户主动隐藏提示，不再打扰 */
-  const dismissPermCard = () => {
-    dispatch({ t: 'settings', s: { notifHintDismissed: true } });
-  };
+  const permGuide = usePermGuide(db.settings.notifHintDismissed);
 
   /** 同步全部提醒与待办到系统日历 */
   const doSyncCalendar = async () => {
@@ -246,69 +189,28 @@ export function SettingsPage() {
 
       <div className="page-body space-y-3.5">
         {/* ========== 提醒权限（v2.13.1）==========
-            小米等国产 ROM 对非商店渠道 APK 判为「敏感应用」，
-            安装时就压制了系统的首次权限询问，App 内必须主动引导。
-            用户处理过一次后不再打扰；缺什么就点什么，不给无关项。 */}
-        {needPermCard && (
-          <div className="rounded-lg border border-accent-line bg-accent-soft/60 px-3 py-2.5">
-            <div className="flex items-center gap-1.5 mb-1">
-              <Bell size={14} strokeWidth={2} className="text-accent" />
-              <span className="text-[var(--f-sm)] font-medium text-ink-2">
-                开启提醒，手机才会在到点响
-              </span>
-            </div>
-            <p className="text-[var(--f-xs)] text-ink-3 leading-relaxed mb-2">
-              部分国产手机会把非商店安装的应用判为「敏感应用」，并自动屏蔽权限询问弹窗。
-              这类提示无法关闭，但权限可以在这里手动开启。
-            </p>
+            首次启动会在首页顶部提示；这里保留常驻入口，
+            用户跳过首页提示后随时能回来开。小米等国产 ROM 会判「敏感应用」，
+            弹窗被压制属正常，只能靠这里手动引导。 */}
+        <PermGuideCard
+          st={permGuide}
+          onAskNotify={() => void permGuide.askNotify()}
+          onAskCalendar={() => void permGuide.askCalendar()}
+          onAskAll={() => void permGuide.askAll()}
+          onDismiss={permGuide.dismiss}
+          onRefresh={() => void permGuide.refresh()}
+        />
 
-            <div className="space-y-1.5">
-              {!perms?.canPost && (
-                <PermRow
-                  title="通知权限"
-                  desc={perms ? '未开启，手机到点不会弹提醒' : '检测中…'}
-                  onClick={askNotify}
-                  need
-                />
-              )}
-              {!db.settings.calendarAsked && (
-                <PermRow
-                  title="系统日历写入"
-                  desc="开启后提醒写进日历，手机重启也不丢"
-                  onClick={askCalendar}
-                  need
-                />
-              )}
-              {perms?.canPost && !perms.canExact && (
-                <PermRow
-                  title="精确闹钟"
-                  desc="未开启时提醒可能延迟几分钟；要准点请用手机自带「时钟」另设闹钟"
-                  onClick={askNotify}
-                />
-              )}
-            </div>
-
-            <div className="flex gap-1.5 mt-2">
-              <button className="btn flex-1" onClick={() => void askAll()}>
-                全部开启
-              </button>
-              <button
-                className="btn-ghost flex-1"
-                onClick={() => { dismissPermCard(); void refreshPerms(); }}
-              >
-                不再提示
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* 已全部就绪时给一行确认，让用户知道提醒已生效 */}
-        {!needPermCard && perms?.available && perms.canPost && db.settings.calendarAsked && (
+        {/* 用户在首页点过「不再提示」后，这里给个反悔入口 */}
+        {db.settings.notifHintDismissed && !permGuide.allReady && (
           <button
             className="w-full text-left text-[var(--f-xs)] text-ink-3 px-1 py-0.5"
-            onClick={() => void refreshPerms()}
+            onClick={() => {
+              permGuide.restore();
+              void permGuide.refresh();
+            }}
           >
-            提醒已就绪：系统通知 + 系统日历双通道
+            重新显示提醒权限引导
           </button>
         )}
 

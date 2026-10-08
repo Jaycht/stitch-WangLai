@@ -31,15 +31,29 @@ const rec = fs.readFileSync('src/pages/RecordsPage.tsx', 'utf8');
 const per = fs.readFileSync('src/pages/PersonsPage.tsx', 'utf8');
 
 /* ---------- 1. 等宽：涛哥要求删除与保存一致 ---------- */
-console.log('\n[1] 删除与保存等宽（不再刻意突出删除）');
-check('记录页删除按钮用 flex-1（与保存等宽）',
-  /btn-danger btn flex-1/.test(rec));
-check('人员页删除按钮用 flex-1（与编辑等宽）',
-  /btn-danger btn flex-1/.test(per));
-check('记录页已去掉写死的 w-[88px]', !rec.includes('w-[88px]'));
-check('人员页已去掉写死的 w-[88px]', !per.includes('w-[88px]'));
-check('删除同时带 btn 基类（保证版式与保存完全一致）',
-  /className="btn-danger btn flex-1"/.test(rec));
+console.log('\n[1] 删除与保存等宽（不刻意突出删除）');
+/**
+ * ★v2.13.3 设计变更（涛哥第二次截图）：
+ *   flex-1 + btn-danger 实心红底虽然「等宽」了，但两块红底抢视觉，
+ *   涛哥反馈「太大、突兀、与整体风格不相容」。
+ *   最终对齐全app 确认框（ui.tsx Confirm）的既有风格：
+ *   次要操作（取消/删除）用**无底色红字**，主操作（保存）才用实心按钮。
+ *   两者仍**等宽**（都是 flex-1），保持涛哥上一轮「保持一致」的要求。
+ */
+check('记录页删除用 flex-1（与保存等宽）',
+  /className="flex-1 h-\[var\(--h-btn\)\][\s\S]{0,120}onClick=\{deleteRec\}/.test(rec.replace(/\s*\n\s*/g, ' ')));
+check('人员页删除用 flex-1（与编辑等宽）',
+  /className="flex-1 h-\[var\(--h-btn\)\][\s\S]{0,160}onDelete\(person/.test(per.replace(/\s*\n\s*/g, ' ')));
+// 只查 className 里的 w-[88px]，注释里记录尝试过程不算
+check('记录页 className 里已无 w-[88px]',
+  !/className="[^"]*w-\[88px\]/.test(rec));
+check('人员页 className 里已无 w-[88px]',
+  !/className="[^"]*w-\[88px\]/.test(per));
+check('删除改为无底色红字（不再抢视觉）',
+  /text-\[#C62828\] active:bg-\[#C62828\]\/10/.test(rec));
+check('删除不再是实心红底 btn-danger', !/btn-danger btn flex-1/.test(rec));
+check('保存仍是实心主按钮（层级分明）',
+  rec.includes('className="btn flex-1" onClick={save}'));
 
 /* ---------- 2. 解析 --h-btn 公式，算大字模式下的实际尺寸 ---------- */
 console.log('\n[2] 大字模式尺寸推算（--h-btn 随字号变化）');

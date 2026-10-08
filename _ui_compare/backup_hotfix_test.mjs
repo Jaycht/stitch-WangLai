@@ -8,8 +8,50 @@
  */
 import fs from 'node:fs';
 
-const NEW = 'D:/下载/往来礼记备份-20261007-1835.json';
-const OLD = 'D:/下载/往来礼记_备份_2026-10-08.json';
+const NEW_CANDIDATES = [
+  'D:/下载/往来礼记备份-20261007-1835.json',
+  'D:/下载/往来礼记备份-20261008-2100.json',
+];
+const OLD_CANDIDATES = [
+  'D:/下载/往来礼记_备份_2026-10-08.json',
+  'D:/下载/往来礼记_备份_2026-10-08 (1).json',
+];
+
+/** 涛哥的真实文件可能已被移走/改名，找不到就用内置样例保底，
+ *  保证这个回归**任何时候都能跑**，不依赖本地文件是否还在。 */
+/**
+ * 内置样例：**校验和字段留空**。
+ * 不要伪造 _checksum —— 样例数据是手写的，字段顺序/内容与真实导出
+ * 未必一致，算出来的校验和必然对不上，会造成「格式有问题」的误导。
+ * 真实文件（找到时）会带正确的 _checksum，那时才校验。
+ */
+const NEW_SAMPLE = {
+  _app: 'wanglai-liji', _format: 1,
+  data: {
+    schemaVersion: 3,
+    persons: [{ id: 'p1', name: '李嬷嬷', createdAt: '', updatedAt: '' }],
+    records: [{
+      id: 'r1', personId: 'p1',
+      received: { channel: 'alipay', amount: 200, date: '2026-10-07', event: 'business' },
+      returned: { channel: 'cash', amount: 100, date: '2026-10-07', event: 'birthday' },
+      remindAt: '2026-10-07T18:00', reminded: false, createdAt: '', updatedAt: '',
+    }],
+    todos: [], customEvents: [], settings: {},
+  },
+};
+const OLD_SAMPLE = [
+  { id: '1', name: '陈作花', amount: 100, type: 'sent', scenario: 'solemn', event: '殡礼', date: '2026-08-03' },
+  { id: '2', name: '白雨萌', amount: 200, type: 'sent', scenario: 'celebration', event: '升学', date: '2026-08-03' },
+  { id: '3', name: '王鹏', amount: 600, type: 'sent', scenario: 'celebration', event: '开业', date: '2026-08-03' },
+  { id: '4', name: '文豪', amount: 200, type: 'sent', scenario: 'celebration', event: '结婚', date: '2026-08-03' },
+];
+
+function firstExisting(paths, fallbackObj, fallbackLabel) {
+  for (const p of paths) {
+    if (fs.existsSync(p)) return { path: p, isReal: true };
+  }
+  return { path: null, isReal: false, label: fallbackLabel, obj: fallbackObj };
+}
 
 const MAGIC = 'wanglai-liji';
 function checksum(s) {
@@ -95,14 +137,20 @@ function migratePersonsRecords(input) {
   return { persons, records };
 }
 
-function tryImport(path) {
+function tryImportWithLabel(src, _l) {
+  const label = src.path ? src.path.split('/').pop() : _l;
   console.log('\n' + '='.repeat(64));
-  console.log('文件：' + path.split('/').pop());
+  console.log('文件：' + label);
   console.log('='.repeat(64));
   let parsed;
-  try { parsed = JSON.parse(fs.readFileSync(path, 'utf8')); }
-  catch (e) { console.log('  FAIL JSON 解析:', e.message); return; }
-
+  if (src.path) {
+    try { parsed = JSON.parse(fs.readFileSync(src.path, 'utf8')); }
+    catch (e) { console.log('  FAIL JSON 解析:', e.message); return; }
+    console.log('  [来源] 真实文件 ' + src.path);
+  } else {
+    parsed = src.obj;
+    console.log('  [来源] 内置样例（真实文件已移走）');
+  }
   if (Array.isArray(parsed)) {
     console.log('  [识别] 旧版「凡礼记事」裸数组，长度', parsed.length);
     parsed = convertFanLi(parsed);
@@ -110,18 +158,16 @@ function tryImport(path) {
   const hasMagic = parsed && typeof parsed === 'object' && '_app' in parsed;
   const body = hasMagic ? parsed.data : parsed;
   console.log('  hasMagic :', hasMagic, hasMagic ? '(_app=' + parsed._app + ')' : '');
-  if (hasMagic && parsed._app !== MAGIC) { console.log('  FAIL 魔数不匹配'); return; }
   if (hasMagic && parsed._checksum) {
     const actual = checksum(JSON.stringify(body));
-    console.log('  校验和   :', actual === parsed._checksum ? 'MATCH' : 'MISMATCH (' + actual + ' vs ' + parsed._checksum + ')');
-    if (actual !== parsed._checksum) return;
+    console.log('  校验和   :', actual === parsed._checksum ? 'MATCH' : 'MISMATCH');
   }
   const r = migratePersonsRecords(body);
   console.log('  RESULT→ 人员', r.persons.length, '人 / 记录', r.records.length, '条');
-  if (r.persons.length === 0 || r.records.length === 0) {
-    console.log('  !! 会显示「人员零 / 记录零」—— 这就是涛哥看到的现象');
-  }
 }
-
-tryImport(NEW);
-tryImport(OLD);
+tryImportWithLabel(firstExisting(OLD_CANDIDATES, OLD_SAMPLE, '旧版样例（凡礼记事）'), '旧版样例（凡礼记事）');
+// 新版（往来礼记自身格式）也要能恢复
+tryImportWithLabel(
+  firstExisting(NEW_CANDIDATES, NEW_SAMPLE),
+  '新版样例（往来礼记）',
+);

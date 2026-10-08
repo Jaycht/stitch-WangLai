@@ -591,14 +591,15 @@ function PersonDetail({
       title={displayName || person.name}
       footer={
         <>
-          {/* 删除按钮（涛哥：删除要和保存保持一致，不要刻意突出）：
-              原来固定 w-16(64px) → 「删除」挤在小红块里、比编辑矮；
-              后来我又改成 88px，那是「反过来突出删除」，方向也不对。
-              现在**与编辑按钮等宽**（都用 flex-1）。
-              不写死 px 的额外好处：关怀模式大字下 --h-btn 会随字号变高，
-              固定宽度必然装不下两个中文字，等宽则自动适配。 */}
+          {/* 删除按钮（涛哥：太大、突兀、与整体风格不相容）：
+            方向来回错了三次 —— w-16(64px) 挤成一团、
+            w-[88px] 反过来突出删除、flex-1 等宽两块红底抢视觉。
+            最终对齐全app 确认框风格（ui.tsx Confirm）：
+            次要操作用无底色文字按钮，主操作才用实心按钮。
+            高度用 var(--h-btn)，关怀模式大字下自动适配。 */}
           <button
-            className="btn-danger btn flex-1"
+            className="flex-1 h-[var(--h-btn)] text-[var(--f-md)] font-medium
+                       text-[#C62828] active:bg-[#C62828]/10"
             onClick={() => onDelete(person, stat.records.length)}
             aria-label="删除这个人和它的全部记录"
           >删除</button>

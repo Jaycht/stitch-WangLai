@@ -20,6 +20,10 @@ import {
   checkPerms, ensurePermission, type PermStatus,
 } from './notify';
 import { ensurePermission as calEnsurePermission, canUseCalendar } from './calendar';
+import {
+  openAppDetails, openNotificationSettings, openExactAlarmSettings,
+  checkCalendarSystemPermission, onAppResume,
+} from './appSettings';
 import { useApp } from './store';
 import { cn } from './utils';
 
@@ -74,13 +78,17 @@ export function usePermGuide(dismissed?: boolean) {
     // 三项各自独立超时，互不拖累
     const [perms, calGranted] = await Promise.all([
       probeTimeout(checkPerms(), null),
-      probeTimeout(canUseCalendar().then(() => true), false),
+      // ★v2.13.3：日历权限改读**系统真实状态**，
+      //   之前用 calendarAsked（我们记在 localStorage 的「用户点过开启」），
+      //   那是历史选择不是当前状态 —— 用户去设置里改完回来我们并不知道。
+      probeTimeout(checkCalendarSystemPermission(), null),
     ]);
 
     // 通知权限拿不到时一律按「未开启」处理 —— 宁可多提示，不可漏提示
     const notifOk = perms?.canPost === true;
     const exactOk = perms?.canExact === true;
-    const calendarOk = calAskedRef.current === true;
+    // null（探测失败）时按未开启，保证卡片还会显示
+    const calendarOk = calGranted === true;
     // perms 为 null（探测超时）时也要显示卡片，否则等于没引导
     const show = !(notifOk && calendarOk);
     setSt({
@@ -91,8 +99,16 @@ export function usePermGuide(dismissed?: boolean) {
     });
   }, []);
 
-  // 只在挂载时跑一次；后续靠 refresh() 手动触发
+  // 只在挂载时跑一次；后续靠 refresh() / onAppResume 触发
   useEffect(() => { void refresh(); }, [refresh]);
+
+  // ★v2.13.3：用户从系统设置页返回时自动重新检测。
+  // 否则用户手动开了权限回来，卡片还显示「未开启」，等于白引导。
+  useEffect(() => {
+    let h: { remove: () => void } | null = null;
+    void onAppResume(() => { void refresh(); }).then((r) => { h = r; });
+    return () => { h?.remove(); };
+  }, [refresh]);
 
   /**
    * 首页横幅专用：在 dismissed 之外再叠一层判断。
@@ -100,26 +116,71 @@ export function usePermGuide(dismissed?: boolean) {
    */
   const showBanner = dismissed ? false : st.show;
 
-  /** 申请通知权限（含精确闹钟，走系统自动弹窗） */
-  const askNotify = useCallback(async () => {
+  /**
+   * ★v2.13.3 核心改动★
+   *
+   * 之前：点「去开启」只调 `requestPermissions()`。
+   * 小米把非商店 APK 判为「敏感应用」并在**安装时硬性拒绝**，
+   * 系统权限询问窗口根本不出现 → 直接返回 denied，
+   * **什么都没发生**（涛哥真机反馈：点了没反应，只有「不再提示」管用）。
+   *
+   * 现在：
+   *   1. 先试应用内申请（原生安装、用户没拒过的场景有效）
+   *   2. **一旦拿不到，直接跳系统设置页** —— 安装时被拒后唯一的出路
+   *   3. 拿到结果明确告诉用户，不做静默失败
+   */
+  const askNotify = useCallback(async (): Promise<boolean> => {
     const r = await ensurePermission();
+    if (r.canPost) {
+      await refresh();
+      return true;
+    }
+    // 拿不到 → 跳系统设置页（通知权限在应用详情页里）
+    await openNotificationSettings();
     await refresh();
-    return r;
+    return false;
   }, [refresh]);
 
-  /** 申请日历写入权限（另一套系统授权流程） */
+  /**
+   * 精确闹钟权限**不在应用详情页**，在系统「闹钟和提醒」页，
+   * 必须用 ACTION_REQUEST_SCHEDULE_EXACT_ALARM（Android 12+）。
+   */
+  const askExactAlarm = useCallback(async (): Promise<boolean> => {
+    const ok = await openExactAlarmSettings();
+    await refresh();
+    return ok;
+  }, [refresh]);
+
+  /** 申请日历写入权限（日历走的是另一套系统授权流程） */
   const askCalendar = useCallback(async () => {
     const ok = await calEnsurePermission();
-    if (ok) dispatch({ t: 'settings', s: { calendarAsked: true } });
+    if (ok) {
+      dispatch({ t: 'settings', s: { calendarAsked: true } });
+    } else {
+      // 日历授权在应用详情页也能找到，一并跳过去
+      await openAppDetails();
+    }
     await refresh();
     return ok;
   }, [dispatch, refresh]);
 
-  /** 一键全开，按可靠性从高到低 */
+  /**
+   * 一键全开。
+   * 注意：系统页一次 Intent 只到一个地方，所以优先用应用内申请，
+   * 申请不到的再跳设置页。
+   */
   const askAll = useCallback(async () => {
-    await askCalendar();
     await askNotify();
-  }, [askCalendar, askNotify]);
+  }, [askNotify]);
+
+  /**
+   * 用户从系统设置页返回 App 时调用，重新检测真实系统状态。
+   * （之前用 calendarAsked 这种「用户点过开启」的历史选择当状态，
+   *   用户去设置里改完回来我们并不知道，必须问系统。）
+   */
+  const recheck = useCallback(async () => {
+    await refresh();
+  }, [refresh]);
 
   /** 用户主动隐藏，不再打扰（设置页可重新打开） */
   const dismiss = useCallback(() => {
@@ -132,7 +193,11 @@ export function usePermGuide(dismissed?: boolean) {
     dispatch({ t: 'settings', s: { notifHintDismissed: false } });
   }, [dispatch]);
 
-  return { ...st, showBanner, refresh, askNotify, askCalendar, askAll, dismiss, restore };
+  return {
+    ...st, showBanner, refresh,
+    askNotify, askExactAlarm, askCalendar, askAll,
+    dismiss, restore, recheck,
+  };
 }
 
 /* ---------------- 组件 ---------------- */
@@ -184,11 +249,12 @@ function PermRow({
  * @param compact 首页用（更紧凑，单行说明）
  */
 export function PermGuideCard({
-  st, onAskNotify, onAskCalendar, onAskAll, onDismiss, onRefresh, compact,
+  st, onAskNotify, onAskCalendar, onAskExactAlarm, onAskAll, onDismiss, onRefresh, compact,
 }: {
   st: PermCardState;
   onAskNotify: () => void;
   onAskCalendar: () => void;
+  onAskExactAlarm: () => void;
   onAskAll: () => void;
   onDismiss: () => void;
   onRefresh: () => void;
@@ -244,10 +310,14 @@ export function PermGuideCard({
           <PermRow
             title="精确闹钟"
             desc="未开启时提醒可能延迟几分钟；准点提醒请用手机自带「时钟」另设闹钟"
-            onClick={onAskNotify}
+            onClick={onAskExactAlarm}
           />
         )}
       </div>
+
+      <p className="text-[var(--f-xs)] text-ink-3 mt-1.5 leading-snug">
+        点「去开启」会跳转手机系统设置，找不到的可在设置里搜索本应用名称。
+      </p>
 
       <div className="flex gap-1.5 mt-2">
         <button className="btn flex-1" onClick={onAskAll}>全部开启</button>

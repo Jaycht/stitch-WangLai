@@ -196,6 +196,7 @@ export function SettingsPage() {
           st={permGuide}
           onAskNotify={() => void permGuide.askNotify()}
           onAskCalendar={() => void permGuide.askCalendar()}
+          onAskExactAlarm={() => void permGuide.askExactAlarm()}
           onAskAll={() => void permGuide.askAll()}
           onDismiss={permGuide.dismiss}
           onRefresh={() => void permGuide.refresh()}

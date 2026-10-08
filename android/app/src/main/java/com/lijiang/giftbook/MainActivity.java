@@ -88,6 +88,9 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void load() {
         initialPlugins.add(SafFilePlugin.class);
+        // v2.13.3：跳系统设置页。国产 ROM 安装时就拒绝敏感权限，
+        // App 内申请不到，唯一出路是把用户送到设置页手动开启。
+        initialPlugins.add(AppSettingsPlugin.class);
         super.load();
     }
 

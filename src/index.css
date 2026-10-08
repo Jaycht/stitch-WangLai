@@ -358,16 +358,22 @@
   border-radius: calc(var(--r-ctl) - 2px);
 }
 /* ---------- 顶栏右侧紧凑按钮 ----------
-   v2.13.1-hotfix：涛哥反馈「右上角按钮底部与标题栏底部重合」。
-   根因：`.btn-sm` 用 --h-sm(28px)，而顶栏 `.topbar` 里的
-   返回按钮/控件用 --h-ctl(36px)，矮 8px 又被 align-items:center
-   垂直居中，看上去就往下沉、底部与标题栏贴合。
-   修法：顶栏内的紧凑按钮**不用 --h-sm**，改用 --h-ctl（36px），
-   与顶栏其它控件严格等高。只影响顶栏，不动列表页的小按钮。 */
-.topbar .btn-sm {
-  height: var(--h-ctl);
-  padding: 0 12px;
-  font-size: var(--f-md);
+   v2.13.3-hotfix（涛哥第二次截图反馈）：
+   上一版我把.height 改成 var(--h-ctl)(36px)，结果**按钮变大了、更丑了，
+   而底部还是和标题栏底部齐平** —— 方向完全搞反了。
+
+   重新诊断：问题不在按钮高度，而在 **.topbar 没有 padding-bottom**。
+   顶栏只有 padding-top(给状态栏的 --sat) 和左右 padding，
+   所以「按钮底边到标题栏底边」的留白完全靠
+   min-height(--h-top, 48px) - 按钮高 的余量。
+   我把按钮从 28px 提到 36px，正好把那点余量吃光 → 底部贴死。
+
+   正确解法：
+     1. 按钮**恢复 28px**（btn-sm 本来的尺寸，紧凑才好看）
+     2. 给 .topbar 补 padding-bottom，让底边留出呼吸空间
+   这样按钮保持小巧，且底边不再与标题栏底部重合。 */
+.topbar {
+  padding-bottom: 6px;
 }
 
 /* ---------- 删除按钮：全app 统一样式 ----------

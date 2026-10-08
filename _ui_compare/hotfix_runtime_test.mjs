@@ -113,10 +113,26 @@ const hCtl = parseInt(css.match(/--h-ctl:\s*max\((\d+)px/)?.[1] ?? '0', 10);
 console.log(`  --h-sm=${hSm}px  --h-ctl=${hCtl}px`);
 check('根因确认：btn-sm(28px) 比顶栏控件(36px) 矮 8px',
   hCtl - hSm === 8, `差 ${hCtl - hSm}px`);
-check('已加 .topbar .btn-sm 覆盖规则',
-  css.includes('.topbar .btn-sm'));
-check('顶栏内按钮改用 --h-ctl 与其它控件等高',
-  /\.topbar \.btn-sm \{[^}]*height: var\(--h-ctl\)/.test(css));
+/**
+ * ★v2.13.3 设计变更（涛哥第二次截图反馈）：
+ *   我第一版把 .topbar .btn-sm 撑到 36px，结果**按钮更大更丑，
+ *   而底部还是和标题栏底部齐平** —— 方向完全搞反。
+ *
+ *   重新诊断：问题不在按钮高度，而在 **.topbar 没有 padding-bottom**。
+ *   顶栏底边与按钮底边之间的留白全靠 min-height - 按钮高 的余量，
+ *   把按钮从 28 提到 36 正好吃光那点余量 → 底部贴死。
+ *
+ *   正确解法：① 按钮恢复 btn-sm 原生尺寸 ② 顶栏补 padding-bottom。
+ */
+check('已撤销「把顶栏 btn-sm 撑到 36px」的错误规则',
+  !/\.topbar \.btn-sm\s*\{/.test(css),
+  '按钮变大并不能解决底部齐平，反而更丑');
+check('改由.topbar 补 padding-bottom 解决底部齐平',
+  /\.topbar\s*\{[^}]*padding-bottom:\s*\d+px/.test(css));
+const pb = css.match(/\.topbar\s*\{[^}]*padding-bottom:\s*(\d+)px/);
+check('padding-bottom 是小留白（4~10px）',
+  pb && parseInt(pb[1], 10) >= 4 && parseInt(pb[1], 10) <= 10,
+  `实际 ${pb ? pb[1] + 'px' : '未设'}`);
 
 /* ============ 附加：备份与版本号不能被改坏 ============ */
 console.log('\n[4] 之前已修好的不能回归');

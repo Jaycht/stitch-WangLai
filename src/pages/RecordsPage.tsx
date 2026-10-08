@@ -179,6 +179,7 @@ export function RecordsPage() {
           st={permGuide.showBanner ? permGuide : { ...permGuide, show: false }}
           onAskNotify={() => void permGuide.askNotify()}
           onAskCalendar={() => void permGuide.askCalendar()}
+          onAskExactAlarm={() => void permGuide.askExactAlarm()}
           onAskAll={() => void permGuide.askAll()}
           onDismiss={permGuide.dismiss}
           onRefresh={() => void permGuide.refresh()}
@@ -637,13 +638,21 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
       footer={
         <>
           {!isNew && (
-            /* v2.13.2-hotfix（涛哥：删除要和保存保持一致，不要刻意突出）：
-               - 原来 w-16(64px) 固定宽，「删除」两字挤在小红块里、比保存矮
-               - 后来我改成 88px，但那是「反过来突出删除」，方向也不对
-               - 现在**删除与保存等宽**（都用 flex-1），视觉最稳。
-               附带好处：不写死 px，关怀模式大字下
-               --h-btn 会随字号变高，固定宽度必然装不下，等宽则自动适配。 */
-            <button className="btn-danger btn flex-1" onClick={deleteRec}>删除</button>
+            /* v2.13.3-hotfix（涛哥：两个按钮太大，突兀，与整体风格不相容）：
+               方向来回错了三次：
+                 w-16(64px) → 挤成一团、比保存矮
+                 w-[88px]   → 反过来突出删除，方向也不对
+                 flex-1 等宽 → 两块红底抢视觉，还是太大
+               最后对齐**全app 确认框的既有风格**（见 ui.tsx Confirm）：
+               次要操作（取消/删除）用「无底色 + 大字号」文字按钮，
+               主操作（保存）才用实心按钮。
+               这样删除不抢视觉、保存仍是明确的主动作；
+               高度用 var(--h-btn) 而非写死 px，关怀模式大字下自动适配。 */
+            <button
+              className="flex-1 h-[var(--h-btn)] text-[var(--f-md)] font-medium
+                         text-[#C62828] active:bg-[#C62828]/10"
+              onClick={deleteRec}
+            >删除</button>
           )}
           <button className="btn flex-1" onClick={save} disabled={!canSave}>
             {canSave ? '保存' : '填人和金额'}

@@ -26,6 +26,12 @@ const TODO_LEAD_OPTIONS = [
   { v: 1440, label: '提前 1 天' },
 ];
 
+/** 权限还没查到时的占位（避免 needExactWarn 收到 null） */
+const UNKNOWN_PERMS: PermStatus = {
+  available: false, display: 'denied', exactAlarm: 'denied',
+  canPost: false, canExact: false,
+};
+
 /** 距今天的天数：正数=还有几天，负数=已过几天 */
 function daysFromToday(d: string): number {
   const t = new Date(todayStr() + 'T00:00:00').getTime();
@@ -428,22 +434,24 @@ function TodoEditor({ todo, onClose }: { todo: Todo | null; onClose: () => void 
     if (todo) dispatch({ t: 'updateTodo', id: todo.id, td: payload });
     else dispatch({ t: 'addTodo', td: payload });
 
-    // v2.13.1：待办也要能弹通知（原来只有酒席排期）
+    // v2.13.1-hotfix：先关面板，再后台排期。
+    // 权限申请在国产 ROM 上可能被压制而不 resolve，await 会卡死界面。
+    onClose();
     if (due) {
-      const tmp = { ...(todo ?? {}), ...payload, id: todo?.id ?? 'pending', done: false,
-        createdAt: '', updatedAt: '' } as Todo;
-      const res = await scheduleTodo(tmp, nameOf, db.settings.remindLeadMin ?? 60);
-      if (!res.ok && res.reason === 'past') {
-        setSchedMsg('提醒时间减去提前量后已经过去，本次未排上。改个时间或调小提前量即可。');
-      } else if (res.ok && (res.inexact || needExactWarn(leadMin ?? db.settings.remindLeadMin ?? 60, perms))) {
-        setSchedMsg('未获精确闹钟权限，此提醒可能延迟几分钟。要准点的话，请用手机自带「时钟」另设闹钟。');
-      } else {
-        setSchedMsg(null);
-      }
+      void (async () => {
+        const tmp = { ...(todo ?? {}), ...payload, id: todo?.id ?? 'pending', done: false,
+          createdAt: '', updatedAt: '' } as Todo;
+        const res = await scheduleTodo(tmp, nameOf, db.settings.remindLeadMin ?? 60)
+          .catch(() => ({ ok: false as const, reason: 'error' as const }));
+        if (!res.ok && res.reason === 'past') {
+          setSchedMsg('提醒时间减去提前量后已经过去，本次未排上。改个时间或调小提前量即可。');
+        } else if (res.ok && (res.inexact || needExactWarn(leadMin ?? db.settings.remindLeadMin ?? 60, perms ?? UNKNOWN_PERMS))) {
+          setSchedMsg('未获精确闹钟权限，此提醒可能延迟几分钟。要准点的话，请用手机自带「时钟」另设闹钟。');
+        }
+      })();
     } else if (todo) {
       void cancelTodo(todo.id);
     }
-    onClose();
   };
 
   const quickDue = [
@@ -453,10 +461,12 @@ function TodoEditor({ todo, onClose }: { todo: Todo | null; onClose: () => void 
     { v: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10); })(), l: '一周后' },
   ];
 
-  /** v2.13.1：用户第一次设提醒时，主动申请通知权限 */
-  const applyDue = async (v: string) => {
+  /** v2.13.1：用户第一次设提醒时，主动申请通知权限（不阻塞 UI） */
+  const applyDue = (v: string) => {
     setDue(v);
-    if (v && !perms) setPerms(await ensurePermission());
+    if (v && !perms) {
+      void ensurePermission().then((r) => setPerms(r)).catch(() => {});
+    }
   };
 
   return (

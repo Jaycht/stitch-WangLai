@@ -117,54 +117,64 @@ const UNKNOWN: PermStatus = {
   canPost: false, canExact: false,
 };
 
+/**
+ * 给插件调用加超时保护。
+ *
+ * 国产 ROM（小米/华为等）会压制权限申请弹窗，被压制时
+ * `requestPermissions()` 既不弹窗也不 resolve —— 调用方会永久 await 卡住，
+ * 表现为「点保存没反应、界面卡死」。凡是 await 插件的地方都必须兜底。
+ */
+async function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    p.catch(() => fallback),
+    new Promise<T>((r) => setTimeout(() => r(fallback), ms)),
+  ]);
+}
+
 /** 只查询，不申请 —— 供启动检测与提示逻辑使用 */
 export async function checkPerms(): Promise<PermStatus> {
   const p = await getPlugin();
   if (!p) return UNKNOWN;
-  try {
-    const r = await p.checkPermissions();
-    const display = (r.display ?? 'denied') as PermState;
-    const exact = (r.exact_alarm ?? 'denied') as PermState;
-    return {
-      available: true,
-      display,
-      exactAlarm: exact,
-      canPost: display === 'granted',
-      canExact: exact === 'granted',
-    };
-  } catch {
-    return { ...UNKNOWN, available: true };
-  }
+  const r = await withTimeout(p.checkPermissions(), 4000, null);
+  if (!r) return { ...UNKNOWN, available: true };
+  const display = (r.display ?? 'denied') as PermState;
+  const exact = (r.exact_alarm ?? 'denied') as PermState;
+  return {
+    available: true,
+    display,
+    exactAlarm: exact,
+    canPost: display === 'granted',
+    canExact: exact === 'granted',
+  };
 }
 
 /**
  * 申请通知权限。
  *
- * 说明：系统弹窗能否出现由厂商 ROM 决定（小米对非商店渠道 APK 可能压制）。
- * 被压制时这里会直接拿到 denied，不会崩溃、也不会卡住。
- * 调用方应根据返回值决定是否引导用户去系统设置手动开启。
+ * 说明：系统弹窗能否出现由厂商 ROM 决定（小米对非商店渠道 APK 会压制）。
+ * 被压制时这里不会挂死（见 withTimeout），而是 4 秒后返回 denied，
+ * 调用方据此引导用户去系统设置手动开启。
  */
 export async function ensurePermission(): Promise<PermStatus> {
   const p = await getPlugin();
   if (!p) return UNKNOWN;
-  try {
-    const cur = await p.checkPermissions();
-    let display = (cur.display ?? 'denied') as PermState;
-    if (display === 'prompt') {
-      const req = await p.requestPermissions();
-      display = (req.display ?? 'denied') as PermState;
-    }
-    const exact = (cur.exact_alarm ?? 'denied') as PermState;
-    return {
-      available: true,
-      display,
-      exactAlarm: exact,
-      canPost: display === 'granted',
-      canExact: exact === 'granted',
-    };
-  } catch {
-    return { ...UNKNOWN, available: true };
+  const cur = await withTimeout(p.checkPermissions(), 4000, null);
+  if (!cur) return { ...UNKNOWN, available: true };
+
+  let display = (cur.display ?? 'denied') as PermState;
+  if (display === 'prompt') {
+    // 这一步在小米上可能永不 resolve —— 必须有超时
+    const req = await withTimeout(p.requestPermissions(), 4000, null);
+    display = (req?.display ?? display) as PermState;
   }
+  const exact = (cur.exact_alarm ?? 'denied') as PermState;
+  return {
+    available: true,
+    display,
+    exactAlarm: exact,
+    canPost: display === 'granted',
+    canExact: exact === 'granted',
+  };
 }
 
 /** 用一句话说明当前权限状况，供界面直接展示 */

@@ -92,7 +92,12 @@ export function Sheet({
           {children}
         </div>
         {footer && (
-          <div className="shrink-0 px-3.5 py-2.5 border-t border-line flex gap-2">
+          /* v2.13.1-hotfix：底部按钮要与顶栏按钮对齐到同一条基准线。
+             原来这里用 py-2.5（10px），而顶栏 .topbar 用 py-3 且按钮高h-ctl，
+             两者下边缘错位。改为 py-3，并让 footer 内的 .btn/.btn-danger
+             显式使用 h-ctl 高度，保证「填人和金额」这类宽按钮与
+             顶栏的 w-8 h-ctl 圆形按钮底部齐平。 */
+          <div className="shrink-0 px-3.5 py-3 border-t border-line flex gap-2 items-center">
             {footer}
           </div>
         )}

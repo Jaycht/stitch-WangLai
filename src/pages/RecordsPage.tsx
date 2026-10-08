@@ -578,28 +578,31 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
     else dispatch({ t: 'updateRecord', id: rec!.id, r: payload });
 
     // 排提醒（原生环境才真发通知）
+    // v2.13.1-hotfix：**必须先关面板再排期**。
+    // 国产 ROM 会压制权限弹窗，await 可能永不 resolve，
+    // 那样onClose() 永远不执行 → 用户以为卡死，反复点保存 → 重复记录。
+    onClose();
     if (remindAt) {
-      // v2.13.1：首次设提醒时主动申请权限，拿不到就如实告知用户
-      const perms = await ensurePermission();
-      setPerms(perms);
-      const lead = db.settings.remindLeadMin ?? 60;
-      const fake: GiftRecord = { ...(rec ?? {}), ...payload, id: rec?.id ?? 'pending' } as GiftRecord;
-      const res = await scheduleOne(fake, nameOf, lead);
-      if (!res.ok) {
-        setSchedMsg(
-          res.reason === 'past'
-            ? '提醒时间减去提前量后已经过去，本次未排上。改个时间或调小提前量即可。'
-            : '未能排上系统通知，提醒会写入系统日历。'
-        );
-      } else if (res.inexact || needExactWarn(lead, perms)) {
-        setSchedMsg('未获精确闹钟权限，此提醒可能延迟几分钟。要准点的话，请用手机自带「时钟」另设闹钟。');
-      } else {
-        setSchedMsg(null);
-      }
+      void (async () => {
+        // v2.13.1-hotfix：首次设提醒时才申请权限，且只在已授权过的情况下静默查询
+        const perms = await ensurePermission().catch(() => null);
+        if (perms) setPerms(perms);
+        const lead = db.settings.remindLeadMin ?? 60;
+        const fake: GiftRecord = { ...(rec ?? {}), ...payload, id: rec?.id ?? 'pending' } as GiftRecord;
+        const res = await scheduleOne(fake, nameOf, lead).catch(() => ({ ok: false as const, reason: 'error' as const }));
+        if (!res.ok) {
+          setSchedMsg(
+            res.reason === 'past'
+              ? '提醒时间减去提前量后已经过去，本次未排上。改个时间或调小提前量即可。'
+              : '未能排上系统通知，提醒会写入系统日历。'
+          );
+        } else if (res.inexact || (perms && needExactWarn(lead, perms))) {
+          setSchedMsg('未获精确闹钟权限，此提醒可能延迟几分钟。要准点的话，请用手机自带「时钟」另设闹钟。');
+        }
+      })();
     } else if (rec?.remindAt) {
       void cancelOne(rec.id);
     }
-    onClose();
   };
 
   const deleteRec = () => {

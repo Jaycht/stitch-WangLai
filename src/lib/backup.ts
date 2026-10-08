@@ -78,6 +78,83 @@ export interface ImportResult {
 }
 
 /**
+ * 旧版「凡礼记事」备份格式转换（v2.13.1-hotfix）
+ *
+ * 旧版导出的是**裸数组**，每条记录长这样：
+ *   { id, name, amount, type:'sent', scenario, event, date }
+ *   - type: 'sent'（随礼/送礼） | 'received'（收礼）
+ *   - scenario: 'celebration'（喜事） | 'solemn'（白事）
+ *   - event: '殡礼' | '升学' | '开业' | '结婚' | ... （中文事由名）
+ *
+ * 旧版没有「人员档案」概念（名字直接挂在记录上），
+ * 所以要按name 去重生成persons。
+ */
+function convertFanLi(input: any[]): any {
+  const personsByName = new Map<string, string>();
+  const persons: any[] = [];
+  const records: any[] = [];
+
+  const genId = (() => {
+    let n = 0;
+    return () => 'mig_' + Date.now().toString(36) + '_' + (n++).toString(36);
+  })();
+
+  for (const r of input) {
+    if (!r || typeof r !== 'object') continue;
+    const name = String(r.name ?? '').trim();
+    if (!name) continue;
+
+    // 同名归并到同一个人
+    let pid = personsByName.get(name);
+    if (!pid) {
+      pid = 'mig_p_' + name;
+      personsByName.set(name, pid);
+      persons.push({ id: pid, name, note: '由旧版备份导入', createdAt: nowISO(), updatedAt: nowISO() });
+    }
+
+    const amt = Number(r.amount) || 0;
+    const date = String(r.date ?? '').slice(0, 10) || nowISO().slice(0, 10);
+    const isSent = String(r.type) === 'sent';
+    // 白事默认收礼方向（吊唁收礼），喜事按 sent 判定
+    const solemn = String(r.scenario) === 'solemn';
+    const evt = String(r.event ?? '');
+    // 事由映射到内建 key；「殡礼」归到白事类
+    let event = 'other';
+    if (solemn) event = 'funeral';
+    else if (/结婚|喜|嫁/.test(evt)) event = 'wedding';
+    else if (/升学|学/.test(evt)) event = 'school';
+    else if (/开业|开张/.test(evt)) event = 'business';
+    else if (/生日/.test(evt)) event = 'birthday';
+    else if (/乔迁|搬家/.test(evt)) event = 'housewarming';
+    else if (/满月/.test(evt)) event = 'fullmoon';
+    else if (/百日/.test(evt)) event = 'birthday';
+
+    const side = {
+      channel: 'cash' as const,
+      amount: amt,
+      date,
+      event,
+    };
+    records.push({
+      id: String(r.id ?? genId()),
+      personId: pid,
+      received: isSent ? undefined : side,
+      returned: isSent ? side : undefined,
+      remindAt: undefined,
+      reminded: false,
+      createdAt: nowISO(),
+      updatedAt: nowISO(),
+    });
+  }
+
+  return { schemaVersion: 3, persons, records, todos: [], customEvents: [], settings: {} };
+}
+
+function nowISO(): string {
+  return new Date().toISOString();
+}
+
+/**
  * 解析并导入。
  * 任何一步失败都不改动现有数据 —— 先全部在内存里算好再落盘。
  */
@@ -87,6 +164,15 @@ export function importBackup(text: string, current: DB, mode: ImportMode = 'repl
     parsed = JSON.parse(text);
   } catch {
     return { ok: false, message: '文件不是合法的 JSON，可能已损坏' };
+  }
+
+  // 旧版「凡礼记事」：裸数组，格式完全不同，先转换
+  if (Array.isArray(parsed)) {
+    const conv = convertFanLi(parsed);
+    if (!conv.persons.length) {
+      return { ok: false, message: '旧版备份里没有识别到任何有效记录' };
+    }
+    parsed = conv;
   }
 
   // 兼容两种：包了魔数的备份文件 / 裸的 DB 对象

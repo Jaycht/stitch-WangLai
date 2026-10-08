@@ -13,11 +13,7 @@ import { useSuggest, SuggestBox } from '../lib/Suggest';
 import { TopBar, Sheet, Empty, SearchBox, Confirm } from '../lib/ui';
 import { EventPicker, EventChip, EventBtn } from '../lib/EventPicker';
 import { DupHint, DupPicker, AliasEditor } from '../lib/DupHint';
-import {
-  LEAD_OPTIONS, scheduleOne, cancelOne, canNotify,
-  ensurePermission, permAdvice, needExactWarn, type PermStatus,
-} from '../lib/notify';
-import { usePermGuide, PermGuideCard } from '../lib/PermGuide';
+// v2.14.0：提醒与权限相关 import 已移除（不再提供提醒服务、零权限申请）
 import { useLongPress } from '../lib/useLongPress';
 import { SelectBar, CheckMark } from '../lib/ActionSheet';
 import { cn } from '../lib/utils';
@@ -27,7 +23,8 @@ import { LongPressTip, useTipOnce } from '../lib/LongPressTip';
 
 const chLabel = (k: string) => CHANNELS.find((c) => c.key === k)?.label ?? k;
 
-type Filter = 'all' | 'in' | 'out' | 'remind';
+// v2.14.0：移除 'remind'（不再提供提醒）
+type Filter = 'all' | 'in' | 'out';
 
 export function RecordsPage() {
   const { db, dispatch, nameOf, rawNameOf, totalIn, totalOut } = useApp();
@@ -99,22 +96,12 @@ export function RecordsPage() {
 
   // 首次进入提示「短按/长按」各做什么，只出一次
   const tip = useTipOnce('records');
-  /** 待删里有几条设过提醒，删除前要提醒用户 */
-  const delCountWithRemind = useMemo(
-    () => db.records.filter((r) => sel.has(r.id) && r.remindAt).length,
-    [db.records, sel],
-  );
-
   const lookup = useMemo(() => makeEventLookup(db.customEvents), [db.customEvents]);
-
-  // v2.13.1：首次启动主动检测提醒权限，缺则顶部横幅引导（设置页也有常驻入口）
-  const permGuide = usePermGuide(db.settings.notifHintDismissed);
 
   const list = useMemo(() => {
     let rs = db.records;
     if (tab === 'in') rs = rs.filter((r) => (r.received?.amount ?? 0) > 0);
     if (tab === 'out') rs = rs.filter((r) => (r.returned?.amount ?? 0) > 0);
-    if (tab === 'remind') rs = rs.filter((r) => r.remindAt);
     if (q.trim()) {
       const k = q.trim();
       // 同时匹配显示名和原始姓名
@@ -122,12 +109,7 @@ export function RecordsPage() {
         nameOf(r.personId).includes(k) || rawNameOf(r.personId).includes(k));
     }
     return [...rs].sort((a, b) => {
-      // 有提醒的按提醒时间前置，其余按日期倒序
-      const ar = a.remindAt ?? '';
-      const br = b.remindAt ?? '';
-      if (ar && br) return ar.localeCompare(br);
-      if (ar) return -1;
-      if (br) return 1;
+      // v2.14.0：不再有「提醒前置」，纯按日期倒序
       return (b.received?.date || '').localeCompare(a.received?.date || '');
     });
   }, [db.records, tab, q, nameOf, rawNameOf]);
@@ -144,8 +126,6 @@ export function RecordsPage() {
   }, [list]);
 
   const net = totalIn - totalOut;
-  const remindCount = db.records.filter((r) => r.remindAt).length;
-
   return (
     <>
       <TopBar
@@ -173,19 +153,6 @@ export function RecordsPage() {
       />
 
       <div className="page-body space-y-3">
-        {/* v2.13.1：权限引导横幅（首次启动检测，缺权限才显示；
-            用户点「不再提示」后不再打扰，但设置页仍有常驻入口）*/}
-        <PermGuideCard
-          st={permGuide.showBanner ? permGuide : { ...permGuide, show: false }}
-          onAskNotify={() => void permGuide.askNotify()}
-          onAskCalendar={() => void permGuide.askCalendar()}
-          onAskExactAlarm={() => void permGuide.askExactAlarm()}
-          onAskAll={() => void permGuide.askAll()}
-          onDismiss={permGuide.dismiss}
-          onRefresh={() => void permGuide.refresh()}
-          compact
-        />
-
         {/*汇总条 */}
         <div className="card px-3.5 py-3">
           <div className="flex items-end gap-1.5">
@@ -263,23 +230,12 @@ export function RecordsPage() {
           onClose={tip.dismiss}
         />
 
-        {remindCount > 0 && tab !== 'remind' && (
-          <button
-            onClick={() => setTab('remind')}
-            className="card px-3 py-2 w-full flex items-center gap-2 active:bg-paper"
-          >
-            <Bell size={14} strokeWidth={1.9} className="text-accent" />
-            <span className="text-[var(--f-sm)] flex-1 text-left">已设 {remindCount} 个酒席提醒</span>
-            <span className="text-[var(--f-xs)] text-ink-3">查看</span>
-          </button>
-        )}
-
         {/* 列表 */}
         {list.length === 0 ? (
           <div className="card">
             <Empty
-              text={q ? '没有匹配的人员' : tab === 'remind' ? '还没有设置提醒' : '还没有任何记录'}
-              hint={q ? '换个名字试试' : tab === 'remind' ? '在记录里点开一条，设个提醒时间' : '点右下角按钮记第一笔'}
+              text={q ? '没有匹配的人员' : '还没有任何记录'}
+              hint={q ? '换个名字试试' : '点右下角按钮记第一笔'}
             />
           </div>
         ) : (
@@ -345,11 +301,6 @@ export function RecordsPage() {
           message={
             <>
               删除后无法恢复。
-              {delCountWithRemind > 0 && (
-                <div className="mt-1 text-[#C62828]">
-                  其中 {delCountWithRemind} 条设过酒席提醒，提醒也会一并取消。
-                </div>
-              )}
             </>
           }
           danger
@@ -483,20 +434,11 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
   const [showDup, setShowDup] = useState(false);
   const [showDupList, setShowDupList] = useState(false);
   const [showAlias, setShowAlias] = useState(false);
-  const [notifyOK, setNotifyOK] = useState<boolean | null>(null);
-  /** v2.13.1：当前权限状态，供准点提醒时提示 */
-  const [perms, setPerms] = useState<PermStatus | null>(null);
-  /** v2.13.1：排期结果反馈，不再静默 */
-  const [schedMsg, setSchedMsg] = useState<string | null>(null);
+  // v2.14.0：notifyOK / perms / schedMsg 已随提醒功能一并移除
 
   const hasOut = (returned?.amount ?? 0) > 0;
   const hasIn = (received?.amount ?? 0) > 0;
   const canSave = personName.trim().length > 0 && (hasIn || hasOut);
-
-  /** 权限提示语：准点提醒时若无精确闹钟权限要额外提醒可能延迟 */
-  const advice = perms
-    ? permAdvice(perms, (db.settings.remindLeadMin ?? 60) === 0)
-    : null;
 
   // 同名检测：只在「已填了名字」且不是选中了已有档案时提示
   const trimmed = personName.trim();
@@ -594,38 +536,14 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
     if (isNew) dispatch({ t: 'addRecord', r: payload });
     else dispatch({ t: 'updateRecord', id: rec!.id, r: payload });
 
-    // 排提醒（原生环境才真发通知）
-    // v2.13.1-hotfix：**必须先关面板再排期**。
-    // 国产 ROM 会压制权限弹窗，await 可能永不 resolve，
-    // 那样onClose() 永远不执行 → 用户以为卡死，反复点保存 → 重复记录。
+    // v2.14.0：不再排任何提醒（涛哥决策「只做登记，不提供提醒服务」）。
+    // 保留同步关闭面板，避免用户以为卡死。
     onClose();
-    if (remindAt) {
-      void (async () => {
-        // v2.13.1-hotfix：首次设提醒时才申请权限，且只在已授权过的情况下静默查询
-        const perms = await ensurePermission().catch(() => null);
-        if (perms) setPerms(perms);
-        const lead = db.settings.remindLeadMin ?? 60;
-        const fake: GiftRecord = { ...(rec ?? {}), ...payload, id: rec?.id ?? 'pending' } as GiftRecord;
-        const res = await scheduleOne(fake, nameOf, lead).catch(() => ({ ok: false as const, reason: 'error' as const }));
-        if (!res.ok) {
-          setSchedMsg(
-            res.reason === 'past'
-              ? '提醒时间减去提前量后已经过去，本次未排上。改个时间或调小提前量即可。'
-              : '未能排上系统通知，提醒会写入系统日历。'
-          );
-        } else if (res.inexact || (perms && needExactWarn(lead, perms))) {
-          setSchedMsg('未获精确闹钟权限，此提醒可能延迟几分钟。要准点的话，请用手机自带「时钟」另设闹钟。');
-        }
-      })();
-    } else if (rec?.remindAt) {
-      void cancelOne(rec.id);
-    }
   };
 
   const deleteRec = () => {
     if (rec) {
       dispatch({ t: 'removeRecord', id: rec.id });
-      void cancelOne(rec.id);
     }
     onClose();
   };
@@ -838,87 +756,18 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
         </div>
         </FieldGroup>
 
-        {/* ========== 第 5 组：提醒与备注 ==========
-            都是记完之后补充的，不是记这笔的必需信息，放最后。 */}
-        <FieldGroup title="提醒与备注">
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[var(--f-sm)] font-medium text-ink-2 flex items-center gap-1.5">
-              <Bell size={13} strokeWidth={2} />酒席提醒
-            </span>
-            {remindAt ? (
-              <button onClick={() => { setRemindAt(''); setNotifyOK(null); }} className="text-[var(--f-xs)] text-ink-3">
-                清除
-              </button>
-            ) : (
-              <button
-                onClick={async () => {
-                  const d = received.date || new Date().toISOString().slice(0, 10);
-                  setRemindAt(`${d}T18:00`);
-                  setNotifyOK(await canNotify());
-                }}
-                className="text-[var(--f-xs)] text-accent"
-              >
-                设提醒
-              </button>
-            )}
-          </div>
-          {remindAt ? (
-            <>
-              <div className="flex gap-2">
-                <input
-                  className="field flex-1"
-                  type="date"
-                  value={remindAt.slice(0, 10)}
-                  onChange={(e) =>
-                    setRemindAt((s) => `${e.target.value}T${(s || '').slice(11, 16) || '18:00'}`)}
-                />
-                <input
-                  className="field w-28"
-                  type="time"
-                  value={remindAt.slice(11, 16)}
-                  onChange={(e) =>
-                    setRemindAt((s) => `${(s || '').slice(0, 10)}T${e.target.value}`)}
-                />
-              </div>
-              <div className="mt-2">
-                <label className="label">提前多久提醒</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {LEAD_OPTIONS.map((o) => (
-                    <button
-                      key={o.v}
-                      onClick={() => dispatch({ t: 'settings', s: { remindLeadMin: o.v } })}
-                      className={cn('pill', (db.settings.remindLeadMin ?? 60) === o.v && 'pill-on')}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {schedMsg && (
-                <p className="text-[var(--f-xs)] text-ink-3 mt-2 flex items-start gap-1">
-                  <BellOff size={12} strokeWidth={2} className="mt-0.5 shrink-0" />
-                  <span>{schedMsg}</span>
-                </p>
-              )}
-              {!schedMsg && advice && (
-                <p className="text-[var(--f-xs)] text-ink-3 mt-2 flex items-start gap-1">
-                  <BellOff size={12} strokeWidth={2} className="mt-0.5 shrink-0" />
-                  <span>{advice}</span>
-                </p>
-              )}
-              {!schedMsg && !advice && notifyOK === false && (
-                <p className="text-[var(--f-xs)] text-ink-3 mt-2 flex items-start gap-1">
-                  <BellOff size={12} strokeWidth={2} className="mt-0.5 shrink-0" />
-                  <span>系统通知未授权，提醒会写入系统日历。</span>
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="text-[var(--f-sm)] text-ink-3 leading-relaxed bg-paper rounded-lg px-2.5 py-2">
-              设个时间，当天进门会提醒你。空着就是不提醒。
-            </p>
-          )}
+        {/* ========== 第 5 组：备注 ==========
+            v2.14.0：原「酒席提醒」整块已移除（不再提供提醒服务）。
+            保留这里只放备注 —— 它是记完之后的补充信息。 */}
+        <FieldGroup title="备注">
+
+        {/* 提示：本应用只做登记，不发通知。
+            一句话讲清即可，不能让用户以为漏了功能。 */}
+        <div className="flex items-start gap-1.5 px-2.5 py-2 rounded-lg bg-paper">
+          <BellOff size={12} strokeWidth={2} className="mt-0.5 shrink-0 text-ink-3" />
+          <p className="text-[var(--f-xs)] text-ink-3 leading-relaxed">
+            本应用只做登记，不发送提醒。需要到点响，请用手机自带「时钟」设个闹钟。
+          </p>
         </div>
 
         {/* 备注 */}
@@ -1118,7 +967,6 @@ function DeleteSheet({
             className="btn btn-danger flex-1"
             onClick={() => {
               dispatch({ t: 'removeRecord', id: rec.id });
-              void cancelOne(rec.id);
               onClose();
             }}
           >

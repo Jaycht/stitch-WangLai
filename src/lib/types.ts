@@ -189,11 +189,18 @@ export interface GiftRecord {
   returned?: Side;
   remark?: string;
   /**
-   * 提醒时间，ISO 本地时间串，如 '2026-10-08T18:00'
-   * 指向 received.date 当天，用于酒席前提醒
+   * v2.14.0：**已废弃**（原「提醒时间」字段）。
+   *
+   * 决策（涛哥 2026-10-08）：本应用**不再提供提醒服务**，
+   * 只做登记，提醒请用手机自带闹钟。
+   *
+   * 为什么保留这个字段声明而不是直接删：
+   * 用户的旧备份里**存在**这个字段，migrate 读旧数据时会碰到它。
+   * 留着类型声明并在 migrate 里显式丢弃，比让它变成"未知字段"
+   * 更可控（万一将来要恢复提醒，字段名不用重新设计）。
    */
   remindAt?: string;
-  /** 提醒已触发标记，重启后不重复弹 */
+  /** v2.14.0：已废弃，原「提醒已触发」标记，不再使用 */
   reminded?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -204,11 +211,11 @@ export interface Todo {
   id: string;
   title: string;
   note?: string;
-  /** 截止日期 YYYY-MM-DD，可空 */
+  /** 截止日期 YYYY-MM-DD，可空。**只做登记，不提醒** */
   due?: string;
-  /** 截止时刻 HH:mm，可空。填了才到点提醒，否则沿用「提前 1 天」 */
+  /** 截止时刻 HH:mm，可空。**只做登记，不提醒** */
   dueTime?: string;
-  /** 提前多少分钟提醒。仅在dueTime 有值时生效；空则用全局设置 */
+  /** v2.14.0：已废弃，原「提前多少分钟提醒」 */
   leadMin?: number;
   done: boolean;
   /** 关联到某个人，可空 */
@@ -232,17 +239,24 @@ export interface Settings {
   currency: string;
   /** 月份起始日 */
   weekStart: 0 | 1;
-  /** 通知是否已授权（本地记，避免每次都弹权限框） */
+  /**
+   * v2.14.0 以下字段全部**废弃**（原提醒/权限/日历相关）。
+   * 保留声明是为了让 migrate 能读懂旧备份，读到后显式丢弃。
+   *
+   * 决策依据：涛哥 2026-10-08「不提供提醒服务，提醒请用手机自带闹钟」，
+   * 并要求**零权限申请**（国行 ROM 才不会判我们是敏感应用）。
+   */
+  /** 已废弃：通知是否已授权 */
   notifAsked?: boolean;
-  /** 用户已主动处理过通知权限提示，不再打扰（设置页可重新打开） */
+  /** 已废弃：用户已处理过通知权限提示 */
   notifHintDismissed?: boolean;
-  /** 提醒提前分钟数 */
+  /** 已废弃：提醒提前分钟数 */
   remindLeadMin?: number;
-  /** 是否把提醒/待办同步到系统日历（跨重启可靠） */
+  /** 已废弃：是否同步到系统日历 */
   useCalendar?: boolean;
-  /** 日历权限是否已授予 */
+  /** 已废弃：日历权限是否已授予 */
   calendarAsked?: boolean;
-  /** 已放弃申请通知/闹钟权限，只走系统日历 */
+  /** 已废弃：已放弃通知只走日历 */
   notifyFallbackOnly?: boolean;
   /** 界面风格：a 青瓷扁平 / b 柔光玻璃 / c 澎湃卡片 */
   theme?: string;
@@ -260,10 +274,6 @@ export const DEFAULT_SETTINGS: Settings = {
   appLock: false,
   currency: '¥',
   weekStart: 1,
-  notifAsked: false,
-  remindLeadMin: 60,
-  useCalendar: false,
-  calendarAsked: false,
   theme: 'a',
   themePicked: false,
   fontSize: 'off',

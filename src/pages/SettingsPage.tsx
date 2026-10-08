@@ -2,9 +2,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Download, Upload, FileSpreadsheet, Palette, Info, ShieldCheck,
+  Download, Upload, FileSpreadsheet, Palette, Info, ShieldCheck, Type,
   ChevronRight, Trash2, Image as ImageIcon,
-  CalendarDays, RefreshCw, ExternalLink, Bell, Type,
 } from 'lucide-react';
 import { useApp, useToast } from '../lib/store';
 import { TopBar, Sheet, Section, Confirm } from '../lib/ui';
@@ -19,11 +18,7 @@ import { migrate } from '../lib/db';
 import { FONT_SCALES } from '../lib/types';
 import { cn } from '../lib/utils';
 import { VERSION, CHANGELOG, COPYRIGHT, VERSION_LABEL } from '../version';
-import {
-  canUseCalendar, syncAll, openCalendarApp,
-} from '../lib/calendar';
-import { LEAD_OPTIONS } from '../lib/notify';
-import { usePermGuide, PermGuideCard } from '../lib/PermGuide';
+// v2.14.0：日历与提醒权限相关的 import 已全部移除（不再提供提醒服务）
 import { ThemePicker, useTheme } from '../lib/theme';
 import { ACCENTS } from '../lib/palette';
 
@@ -41,8 +36,7 @@ export function SettingsPage() {
   const [pending, setPending] = useState<{ text: string; mode: ImportMode } | null>(null);
   const [importRes, setImportRes] = useState<ImportResult | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
-  const [calState, setCalState] = useState<{ native: boolean }>({ native: false });
-  const [syncing, setSyncing] = useState(false);
+  // v2.14.0：calState / syncing 已随日历同步功能一并移除
 
   const st = db.settings;
   const { sysScale } = useTheme();
@@ -58,35 +52,10 @@ export function SettingsPage() {
     });
   };
 
-  // 检测能否写系统日历
-  useEffect(() => {
-    let alive = true;
-    void canUseCalendar().then((native) => {
-      if (alive) setCalState({ native });
-    });
-    return () => { alive = false; };
-  }, []);
-
-  /* ---------- v2.13.1 权限检测与引导 ----------
-   * 逻辑已抽到 lib/PermGuide.tsx，首页与设置页共用同一套，避免两处分叉。
+  /* ---------- v2.14.0 ----------
+   * 不再提供提醒服务 → 不需要通知/日历/精确闹钟权限，
+   * 因此日历同步与权限引导整块移除（涛哥决策：零权限申请）。
    */
-  const permGuide = usePermGuide(db.settings.notifHintDismissed);
-
-  /** 同步全部提醒与待办到系统日历 */
-  const doSyncCalendar = async () => {
-    setSyncing(true);
-    try {
-      const res = await syncAll(db, nameOf);
-      show(res.message, 3000);
-      if (res.ok) {
-        dispatch({ t: 'settings', s: { useCalendar: true, calendarAsked: true } });
-      }
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  /* ---------- 导出 ---------- */
 
   /* ---------- 导出 ----------
    * 涛哥第 12 条：原来只弹「已导出」，用户不知道文件落在哪、
@@ -188,33 +157,6 @@ export function SettingsPage() {
       <TopBar title="我的" sub={VERSION_LABEL} />
 
       <div className="page-body space-y-3.5">
-        {/* ========== 提醒权限（v2.13.1）==========
-            首次启动会在首页顶部提示；这里保留常驻入口，
-            用户跳过首页提示后随时能回来开。小米等国产 ROM 会判「敏感应用」，
-            弹窗被压制属正常，只能靠这里手动引导。 */}
-        <PermGuideCard
-          st={permGuide}
-          onAskNotify={() => void permGuide.askNotify()}
-          onAskCalendar={() => void permGuide.askCalendar()}
-          onAskExactAlarm={() => void permGuide.askExactAlarm()}
-          onAskAll={() => void permGuide.askAll()}
-          onDismiss={permGuide.dismiss}
-          onRefresh={() => void permGuide.refresh()}
-        />
-
-        {/* 用户在首页点过「不再提示」后，这里给个反悔入口 */}
-        {db.settings.notifHintDismissed && !permGuide.allReady && (
-          <button
-            className="w-full text-left text-[var(--f-xs)] text-ink-3 px-1 py-0.5"
-            onClick={() => {
-              permGuide.restore();
-              void permGuide.refresh();
-            }}
-          >
-            重新显示提醒权限引导
-          </button>
-        )}
-
         {/* 数据概览 */}
         <div className="card px-3.5 py-3">
           <div className="flex items-center justify-between">

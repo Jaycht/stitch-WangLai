@@ -167,8 +167,10 @@ function normRecord(raw: any, customKeys?: Set<string>): GiftRecord | null {
       received: normSide(raw.received, d, customKeys),
       returned: raw.returned ? normSide(raw.returned, d, customKeys) : undefined,
       remark: str(raw?.remark ?? raw?.note) || undefined,
-      remindAt: normRemindAt(raw.remindAt ?? raw.remind),
-      reminded: raw?.reminded === true,
+      // v2.14.0：不再输出 remindAt / reminded（不再提供提醒服务）。
+      // 旧数据里的提醒时间会被这里丢弃；赴宴时间由 received.date 承载。
+      remindAt: undefined,
+      reminded: false,
       createdAt: str(raw?.createdAt) || ts,
       updatedAt: str(raw?.updatedAt) || ts,
     };
@@ -198,8 +200,19 @@ function normRecord(raw: any, customKeys?: Set<string>): GiftRecord | null {
   };
 }
 
+/**
+ * 设置规范化。
+ *
+ * v2.14.0：不再提供提醒服务（涛哥决策），因此**主动丢弃**这些旧字段：
+ *   remindLeadMin / notifAsked / useCalendar / calendarAsked
+ *   / notifyFallbackOnly / notifHintDismissed
+ * 不丢弃的话，用户的旧数据会带着一堆死字段一路走下去，
+ * 而且界面上找不到地方解释它们，只能让人以为还有提醒功能。
+ *
+ * 旧备份里带着这些字段完全没问题 —— 这里读进来后不往下传，
+ * 迁移是安全的。
+ */
 function normSettings(raw: any): Settings {
-  const lead = parseInt(String(raw?.remindLeadMin ?? ''), 10);
   return {
     accent: /^#[0-9A-Fa-f]{6}$/.test(str(raw?.accent)) ? raw.accent : DEFAULT_SETTINGS.accent,
     bg: /^#[0-9A-Fa-f]{6}$/.test(str(raw?.bg)) ? raw.bg : DEFAULT_SETTINGS.bg,
@@ -207,12 +220,9 @@ function normSettings(raw: any): Settings {
     appLock: raw?.appLock === true,
     currency: str(raw?.currency) || '¥',
     weekStart: raw?.weekStart === 0 ? 0 : 1,
-    notifAsked: raw?.notifAsked === true,
-    // 允许 0（准点提醒）到 2880（两天前），其余落回默认
-    remindLeadMin: Number.isFinite(lead) && lead >= 0 && lead <= 2880
-      ? lead : DEFAULT_SETTINGS.remindLeadMin,
-    useCalendar: raw?.useCalendar === true,
-    calendarAsked: raw?.calendarAsked === true,
+    // —— v2.14.0 起不再输出以下字段 ——
+    // notifAsked / remindLeadMin / useCalendar / calendarAsked
+    // / notifyFallbackOnly / notifHintDismissed
     theme: ['a', 'b', 'c'].includes(str(raw?.theme)) ? str(raw.theme) : 'a',
     themePicked: raw?.themePicked === true,
     fontSize: ['off', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl'].includes(str(raw?.fontSize))
@@ -307,7 +317,8 @@ export function migrate(input: any): DB {
         due: raw?.due ? normDate(raw.due) : undefined,
         // v2.13.1：待办提醒时刻与提前量，老数据没有就是undefined（沿用提前 1 天）
         dueTime: /^\d{1,2}:\d{2}$/.test(str(raw?.dueTime)) ? str(raw.dueTime) : undefined,
-        leadMin: Number.isFinite(raw?.leadMin) ? Number(raw.leadMin) : undefined,
+        // v2.14.0：不再输出 leadMin（原「提前多久提醒」已废弃）
+        leadMin: undefined,
         done: raw?.done === true || raw?.completed === true,
         // personId 也要校验，悬空就丢掉关联
         personId: str(raw?.personId) && personIndex.has(str(raw.personId))

@@ -12,9 +12,7 @@ import { cn } from '../lib/utils';
 import { pushBack } from '../lib/backStack';
 import { useLongPress } from '../lib/useLongPress';
 import { SelectBar, CheckMark } from '../lib/ActionSheet';
-import {
-  scheduleTodo, cancelTodo, ensurePermission, needExactWarn, type PermStatus,
-} from '../lib/notify';
+// v2.14.0：提醒与权限相关 import 已移除（不再提供提醒服务、零权限申请）
 
 /** 待办提醒的提前量选项（v2.13.1） */
 const TODO_LEAD_OPTIONS = [
@@ -26,11 +24,6 @@ const TODO_LEAD_OPTIONS = [
   { v: 1440, label: '提前 1 天' },
 ];
 
-/** 权限还没查到时的占位（避免 needExactWarn 收到 null） */
-const UNKNOWN_PERMS: PermStatus = {
-  available: false, display: 'denied', exactAlarm: 'denied',
-  canPost: false, canExact: false,
-};
 
 /** 距今天的天数：正数=还有几天，负数=已过几天 */
 function daysFromToday(d: string): number {
@@ -415,7 +408,6 @@ function TodoEditor({ todo, onClose }: { todo: Todo | null; onClose: () => void 
   const [leadMin, setLeadMin] = useState<number | undefined>(todo?.leadMin);
   const [personId, setPersonId] = useState(todo?.personId ?? '');
   /** v2.13.1：权限状态与排期反馈 */
-  const [perms, setPerms] = useState<PermStatus | null>(null);
   const [schedMsg, setSchedMsg] = useState<string | null>(null);
 
   const canSave = title.trim().length > 0;
@@ -426,32 +418,16 @@ function TodoEditor({ todo, onClose }: { todo: Todo | null; onClose: () => void 
       title: title.trim(),
       note: note.trim() || undefined,
       due: due || undefined,
-      // 只有填了时刻才带上提前量，没时刻就沿用「提前 1 天」
+      // v2.14.0：时刻/提前量只作登记信息保存，不触发任何通知排期
       dueTime: due && dueTime ? dueTime : undefined,
-      leadMin: due && dueTime ? leadMin : undefined,
+      leadMin: undefined,
       personId: personId || undefined,
     };
     if (todo) dispatch({ t: 'updateTodo', id: todo.id, td: payload });
     else dispatch({ t: 'addTodo', td: payload });
 
-    // v2.13.1-hotfix：先关面板，再后台排期。
-    // 权限申请在国产 ROM 上可能被压制而不 resolve，await 会卡死界面。
+    // v2.14.0：不再排任何提醒（涛哥决策「只做登记，不提供提醒服务」）
     onClose();
-    if (due) {
-      void (async () => {
-        const tmp = { ...(todo ?? {}), ...payload, id: todo?.id ?? 'pending', done: false,
-          createdAt: '', updatedAt: '' } as Todo;
-        const res = await scheduleTodo(tmp, nameOf, db.settings.remindLeadMin ?? 60)
-          .catch(() => ({ ok: false as const, reason: 'error' as const }));
-        if (!res.ok && res.reason === 'past') {
-          setSchedMsg('提醒时间减去提前量后已经过去，本次未排上。改个时间或调小提前量即可。');
-        } else if (res.ok && (res.inexact || needExactWarn(leadMin ?? db.settings.remindLeadMin ?? 60, perms ?? UNKNOWN_PERMS))) {
-          setSchedMsg('未获精确闹钟权限，此提醒可能延迟几分钟。要准点的话，请用手机自带「时钟」另设闹钟。');
-        }
-      })();
-    } else if (todo) {
-      void cancelTodo(todo.id);
-    }
   };
 
   const quickDue = [
@@ -461,12 +437,9 @@ function TodoEditor({ todo, onClose }: { todo: Todo | null; onClose: () => void 
     { v: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10); })(), l: '一周后' },
   ];
 
-  /** v2.13.1：用户第一次设提醒时，主动申请通知权限（不阻塞 UI） */
+  /** v2.14.0：只登记日期，不再申请任何权限 */
   const applyDue = (v: string) => {
     setDue(v);
-    if (v && !perms) {
-      void ensurePermission().then((r) => setPerms(r)).catch(() => {});
-    }
   };
 
   return (
@@ -521,44 +494,26 @@ function TodoEditor({ todo, onClose }: { todo: Todo | null; onClose: () => void 
             onChange={(e) => void applyDue(e.target.value)}
           />
 
-          {/* v2.13.1：填了时刻才到点提醒，否则退回「提前 1 天」 */}
+          {/* v2.14.0：日期时刻**仍作为登记信息**保留，
+              但不再有「提醒时刻 / 提前多久提醒」——
+              决策（涛哥 2026-10-08）：只做登记，不提供提醒服务。 */}
           {due && (
             <div className="mt-2">
-              <label className="label">提醒时刻（留空则提前 1 天提醒）</label>
+              <label className="label">时刻（选填）</label>
               <input
                 className="field"
                 type="time"
                 value={dueTime}
-                onChange={(e) => {
-                  setDueTime(e.target.value);
-                  if (e.target.value && leadMin === undefined) setLeadMin(0);
-                }}
+                onChange={(e) => setDueTime(e.target.value)}
               />
-              {dueTime && (
-                <div className="mt-2">
-                  <label className="label">提前多久提醒</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {TODO_LEAD_OPTIONS.map((o) => (
-                      <button
-                        key={o.v}
-                        onClick={() => setLeadMin(o.v)}
-                        className={cn('pill', (leadMin ?? 0) === o.v && 'pill-on')}
-                      >
-                        {o.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
-          {schedMsg && (
-            <p className="text-[var(--f-xs)] text-ink-3 mt-2 flex items-start gap-1">
-              <BellOff size={12} strokeWidth={2} className="mt-0.5 shrink-0" />
-              <span>{schedMsg}</span>
-            </p>
-          )}
+          {/* 提示：一句话讲清「只登记不提醒」，避免用户以为是漏了功能 */}
+          <p className="text-[var(--f-xs)] text-ink-3 leading-relaxed mt-2 flex items-start gap-1">
+            <BellOff size={12} strokeWidth={2} className="mt-0.5 shrink-0" />
+            <span>本应用只做登记，不发送提醒。到点要做的事，请用手机自带「时钟」设个闹钟。</span>
+          </p>
         </div>
 
         {db.persons.length > 0 && (

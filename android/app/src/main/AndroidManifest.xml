@@ -38,19 +38,23 @@
 
     <!-- Permissions -->
 
+    <!--
+      v2.14.0：实现**零敏感权限**（涛哥决策）。
+
+      原来要 8 条权限，全部是为了「到点弹通知提醒」+「写入系统日历」：
+        POST_NOTIFICATIONS / SCHEDULE_EXACT_ALARM / USE_EXACT_ALARM
+        RECEIVE_BOOT_COMPLETED / VIBRATE
+        WRITE_CALENDAR / READ_CALENDAR
+      现在**不再提供提醒服务**，这些权限一条都不需要了 ——
+      删掉它们，国行ROM（小米/华为/OPPO/vivo）就不会再判我们为
+      「敏感应用」，安装时也不会弹「系统已阻止其获取任何权限」。
+
+      ★ 只保留 INTERNET —— 这是 Capacitor 运行必需
+        （WebView 要用 http(s) 加载本地资源、Capacitor Bridge 通信），
+        它属于「普通权限」，安装时不会询问、也不涉及隐私。
+
+      「赴宴时间」仍然保留为**数据字段**（只是不再据此发通知），
+      提醒请用户用手机自带闹钟 —— 见 types.ts 的 EventDate 注释。
+    -->
     <uses-permission android:name="android.permission.INTERNET" />
-
-    <!-- 酒席提醒：Android 13+ 需要显式通知权限 -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- 精确闹钟，酒席提醒要准点响 -->
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
-    <!-- 重启后重建已排期的提醒 -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- 重启后重建提醒（Capacitor 官方要求） -->
-    <uses-permission android:name="android.permission.VIBRATE" />
-
-    <!-- 写入系统日历：事件由系统持有，手机重启不丢 -->
-    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
-    <uses-permission android:name="android.permission.READ_CALENDAR" />
 </manifest>

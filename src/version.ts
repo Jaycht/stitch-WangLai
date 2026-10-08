@@ -1,7 +1,7 @@
 /** 版本、作者与更新日志 */
 
 /** 应用版本号 */
-export const VERSION = '2.14.0';
+export const VERSION = '2.14.1';
 
 /** 作者（显示在「关于」页与各版本更新日志末尾） */
 export const AUTHOR = '陈洪涛';
@@ -14,6 +14,15 @@ export const COPYRIGHT =
 export const VERSION_LABEL = `v${VERSION}　${COPYRIGHT}`;
 
 export const CHANGELOG: { ver: string; items: string[] }[] = [
+  {
+    ver: '2.14.1',
+    items: [
+      '修复输入姓名时历史记录框跑位：输入法弹出时改为按真实可视区域定位，紧贴输入框',
+      '修复历史记录框半透明：浮层改用不透明底色，下方字段不再透出来',
+      '修复历史记录框高度虚高：只有 2-3 条历史时不再拉出大片空白',
+      '记一笔新增时间登记（收礼、回礼都支持），可记录婚宴开席等具体时刻',
+    ],
+  },
   {
     ver: '2.14.0',
     items: [

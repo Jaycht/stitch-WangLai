@@ -128,6 +128,12 @@ function normSide(raw: any, fallbackDate: string, customKeys?: Set<string>): Gif
     amount: num(raw?.amount ?? raw?.money ?? raw?.value),
     gift: str(raw?.gift ?? raw?.giftName) || undefined,
     date: raw?.date ? normDate(raw.date) : fallbackDate,
+    // v2.14.0：可选时间 HH:mm。只认规范格式，
+    // 「18点」「下午三点」这类手写内容一律丢弃 —— 时间是排序依据，
+    // 存错格式比不存更糟。旧数据没有这个字段，不影响导入。
+    time: /^\d{1,2}:\d{2}$/.test(str(raw?.time ?? raw?.at ?? raw?.clock))
+      ? str(raw.time ?? raw.at ?? raw.clock)
+      : undefined,
     event: normEvent(raw?.event ?? raw?.eventName ?? raw?.scenario, customKeys) as any,
     place: str(raw?.place ?? raw?.address ?? raw?.where) || undefined,
   };

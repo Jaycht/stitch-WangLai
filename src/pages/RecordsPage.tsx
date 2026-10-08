@@ -678,14 +678,25 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
             tone="in"
             compact
           />
+          {/* v2.14.0：日期 + 时间并排。
+              涛哥要求「记录婚礼酒席的时间」——日期不够用。
+              时间是可选的，只登记日期的场景不受影响。 */}
           <div>
-            <label className="label">日期</label>
-            <input
-              className="field"
-              type="date"
-              value={received.date}
-              onChange={(e) => setR({ date: e.target.value })}
-            />
+            <label className="label">日期与时间</label>
+            <div className="flex gap-2">
+              <input
+                className="field flex-1"
+                type="date"
+                value={received.date}
+                onChange={(e) => setR({ date: e.target.value })}
+              />
+              <input
+                className="field w-[7.5rem] shrink-0"
+                type="time"
+                value={received.time ?? ''}
+                onChange={(e) => setR({ time: e.target.value || undefined })}
+              />
+            </div>
           </div>
         </FieldGroup>
 
@@ -899,14 +910,23 @@ function SideEditor({
 
       {!compact && (
       <>
+      {/* v2.14.0：回礼方同样支持时间（涛哥：「回礼中也是只有日期没有时间」） */}
       <div className="mt-2.5">
-        <label className="label">日期</label>
-        <input
-          className="field"
-          type="date"
-          value={side.date}
-          onChange={(e) => onChange({ date: e.target.value })}
-        />
+        <label className="label">日期与时间</label>
+        <div className="flex gap-2">
+          <input
+            className="field flex-1"
+            type="date"
+            value={side.date}
+            onChange={(e) => onChange({ date: e.target.value })}
+          />
+          <input
+            className="field w-[7.5rem] shrink-0"
+            type="time"
+            value={side.time ?? ''}
+            onChange={(e) => onChange({ time: e.target.value || undefined })}
+          />
+        </div>
       </div>
 
       <div className="mt-2.5">

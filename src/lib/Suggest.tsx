@@ -150,20 +150,85 @@ export function SuggestBox({
 
   if (!open || items.length === 0) return null;
 
-  // 贴着输入框下方弹出，不固定在屏幕中部 ——
-  // 中部弹出时列表会盖住输入框本身，用户想补个字都点不到。
+  /**
+   * 定位：贴着输入框下方弹出。
+   *
+   * ⚠️ v2.14.0-hotfix1：不能用 `window.innerHeight` 判断空间够不够。
+   * 那是**整个视口**高度，**不反映键盘**。
+   * 输入法弹出时 Android 会 resize 视口（adjustResize）或平移（adjustPan），
+   * 于是「下方剩余空间」被错算，列表被判定为放不下 →
+   * 翻到输入框上方 → 用户看到它贴着输入法
+   * （涛哥真机截图确认：历史框跑到了键盘位置）。
+   *
+   * 正确做法：读 **visualViewport**（真正可见的高度，含键盘弹起后的结果），
+   * 再减去输入框到底部的偏移。
+   */
   const rect = anchorRef?.current?.getBoundingClientRect();
-  const top = rect ? Math.min(rect.bottom + 6, window.innerHeight - 240) : 120;
-  const below = rect ? rect.bottom + 6 + Math.min(240, items.length * 52) < window.innerHeight : false;
-  // 下方空间不够就翻到输入框上方
-  const finalTop = below || !rect ? top : Math.max(8, rect.top - Math.min(240, items.length * 52) - 6);
+  const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+  const viewH = vv?.height ?? window.innerHeight;
+  const viewTop = vv?.offsetTop ?? 0;
+
+  const rowH = 52;
+  const wantH = Math.min(240, items.length * rowH);
+  const GAP = 6;
+
+  let finalTop: number;
+  if (!rect) {
+    finalTop = 120;
+  } else {
+    const rectTop = rect.top - viewTop;
+    const rectBottom = rect.bottom - viewTop;
+    const belowSpace = viewH - rectBottom;
+    if (belowSpace >= wantH + GAP) {
+      // 放得下 → 紧贴输入框下方（这是最常见情况）
+      finalTop = rectBottom + GAP;
+    } else {
+      // 放不下 → 翻到输入框上方
+      finalTop = Math.max(4, rectTop - wantH - GAP);
+    }
+  }
+
+  // 列表自身可用高度：下方时= 视口底 - 列表顶；上方时 = 列表顶 + 期望高
+  const rectTop = rect ? rect.top - viewTop : 0;
+  const spaceH = rect && finalTop > rectTop
+    ? viewH - finalTop
+    : finalTop + wantH;
+
+  /**
+   * ★ v2.14.0-hotfix2：高度要同时受**三个**上限约束。
+   * 原来只对「可用空间」和 50vh 取 min，**漏了内容高度 wantH**，
+   * 结果只有 2-3 条历史时也会拉出一个 400px 的大框，
+   * 下方全是空白（涛哥截图里那半透明大框就是这个）。
+   *
+   * 下限用 48px（单行高度）而不是 120px：
+   * 只有 1 条历史时撑到 120px 会显得空荡荡，一行就该一行高。
+   */
+  const maxH = Math.max(48, Math.min(spaceH, wantH, viewH * 0.5));
+
+  // 主题走 data-theme 属性（不是 class）；玻璃主题下要关掉 backdrop-filter
+  const isGlass =
+    typeof document !== 'undefined'
+    && document.documentElement.getAttribute('data-theme') === 'b';
 
   return (
     <div
       ref={boxRef}
-      className="fixed left-3 right-3 z-50 card overflow-hidden
-                 max-h-[45vh] overflow-y-auto shadow-lg shadow-black/10"
-      style={{ top: Math.max(8, finalTop) }}
+      /* ★ v2.14.0-hotfix1：不透明！
+         原来用 .card，而 .card 背景是 rgba(255,255,255,var(--card-alpha))，
+         柔光玻璃主题下 --card-alpha = 0.55 → **半透明**，
+         下方的「关系 / 电话 / 微信」字段直接透出来（涛哥截图确认）。
+         浮层必须用不透明底色，否则内容重影、无法辨认。 */
+      className="fixed left-3 right-3 z-50 overflow-y-auto shadow-lg shadow-black/20
+                 border border-line rounded-[var(--r-card)]"
+      style={{
+        top: Math.max(4, finalTop),
+        maxHeight: maxH,
+        // --color-card 在各主题下都是**不透明**的纯色
+        background: 'var(--color-card)',
+        ...(isGlass
+          ? { backdropFilter: 'none', WebkitBackdropFilter: 'none' }
+          : {}),
+      }}
       role="listbox"
     >
       {items.map((s, i) => (

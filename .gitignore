@@ -6,10 +6,17 @@ coverage/
 *.log
 .env*
 
-# 临时工作区：反编译产物、UI 对比截图、测试脚本、参考 APK
+# 临时工作区：反编译产物、UI 对比截图、参考 APK
+# 注意：_ui_compare/ 下的 *.py 回归脚本要入库，
+# 否则单位侧拿不到，防复发的那道保险就失效了
 _reverse/
-_ui_compare/
 *.apk
+
+# _ui_compare 里只有脚本入库，图片/HTML 产物仍忽略（** 递归，覆盖子目录）
+_ui_compare/**/*.png
+_ui_compare/**/*.html
+_ui_compare/**/*.log
+_ui_compare/**/*.txt
 
 # 本地数据备份（导出的 JSON/CSV）
 *-备份-*.json

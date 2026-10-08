@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Plus, Check, Trash2, Circle, Calendar, Link2, X, ListChecks, CheckSquare,
+  Plus, Check, Trash2, Circle, Calendar, Link2, X, ListChecks, CheckSquare, BellOff,
 } from 'lucide-react';
 import { Todo, splitTodos } from '../lib/types';
 import { useApp, todayStr } from '../lib/store';
@@ -12,6 +12,19 @@ import { cn } from '../lib/utils';
 import { pushBack } from '../lib/backStack';
 import { useLongPress } from '../lib/useLongPress';
 import { SelectBar, CheckMark } from '../lib/ActionSheet';
+import {
+  scheduleTodo, cancelTodo, ensurePermission, needExactWarn, type PermStatus,
+} from '../lib/notify';
+
+/** 待办提醒的提前量选项（v2.13.1） */
+const TODO_LEAD_OPTIONS = [
+  { v: 0, label: '准点' },
+  { v: 15, label: '提前 15 分' },
+  { v: 30, label: '提前 30 分' },
+  { v: 60, label: '提前 1 小时' },
+  { v: 180, label: '提前 3 小时' },
+  { v: 1440, label: '提前 1 天' },
+];
 
 /** 距今天的天数：正数=还有几天，负数=已过几天 */
 function daysFromToday(d: string): number {
@@ -388,24 +401,48 @@ function TodoRow({
 /* ---------- 编辑 ---------- */
 
 function TodoEditor({ todo, onClose }: { todo: Todo | null; onClose: () => void }) {
-  const { db, dispatch } = useApp();
+  const { db, dispatch, nameOf } = useApp();
   const [title, setTitle] = useState(todo?.title ?? '');
   const [note, setNote] = useState(todo?.note ?? '');
   const [due, setDue] = useState(todo?.due ?? '');
+  const [dueTime, setDueTime] = useState(todo?.dueTime ?? '');
+  const [leadMin, setLeadMin] = useState<number | undefined>(todo?.leadMin);
   const [personId, setPersonId] = useState(todo?.personId ?? '');
+  /** v2.13.1：权限状态与排期反馈 */
+  const [perms, setPerms] = useState<PermStatus | null>(null);
+  const [schedMsg, setSchedMsg] = useState<string | null>(null);
 
   const canSave = title.trim().length > 0;
 
-  const save = () => {
+  const save = async () => {
     if (!canSave) return;
     const payload = {
       title: title.trim(),
       note: note.trim() || undefined,
       due: due || undefined,
+      // 只有填了时刻才带上提前量，没时刻就沿用「提前 1 天」
+      dueTime: due && dueTime ? dueTime : undefined,
+      leadMin: due && dueTime ? leadMin : undefined,
       personId: personId || undefined,
     };
     if (todo) dispatch({ t: 'updateTodo', id: todo.id, td: payload });
     else dispatch({ t: 'addTodo', td: payload });
+
+    // v2.13.1：待办也要能弹通知（原来只有酒席排期）
+    if (due) {
+      const tmp = { ...(todo ?? {}), ...payload, id: todo?.id ?? 'pending', done: false,
+        createdAt: '', updatedAt: '' } as Todo;
+      const res = await scheduleTodo(tmp, nameOf, db.settings.remindLeadMin ?? 60);
+      if (!res.ok && res.reason === 'past') {
+        setSchedMsg('提醒时间减去提前量后已经过去，本次未排上。改个时间或调小提前量即可。');
+      } else if (res.ok && (res.inexact || needExactWarn(leadMin ?? db.settings.remindLeadMin ?? 60, perms))) {
+        setSchedMsg('未获精确闹钟权限，此提醒可能延迟几分钟。要准点的话，请用手机自带「时钟」另设闹钟。');
+      } else {
+        setSchedMsg(null);
+      }
+    } else if (todo) {
+      void cancelTodo(todo.id);
+    }
     onClose();
   };
 
@@ -415,6 +452,12 @@ function TodoEditor({ todo, onClose }: { todo: Todo | null; onClose: () => void 
     { v: (() => { const d = new Date(); d.setDate(d.getDate() + 3); return d.toISOString().slice(0, 10); })(), l: '3天后' },
     { v: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10); })(), l: '一周后' },
   ];
+
+  /** v2.13.1：用户第一次设提醒时，主动申请通知权限 */
+  const applyDue = async (v: string) => {
+    setDue(v);
+    if (v && !perms) setPerms(await ensurePermission());
+  };
 
   return (
     <Sheet
@@ -445,14 +488,18 @@ function TodoEditor({ todo, onClose }: { todo: Todo | null; onClose: () => void 
             {quickDue.map((o) => (
               <button
                 key={o.l}
-                onClick={() => setDue(o.v)}
+                onClick={() => void applyDue(o.v)}
                 className={cn('pill flex-1', due === o.v && 'pill-on')}
               >
                 {o.l}
               </button>
             ))}
             {due && (
-              <button onClick={() => setDue('')} className="pill-sm" aria-label="清除日期">
+              <button
+                onClick={() => { setDue(''); setDueTime(''); setLeadMin(undefined); }}
+                className="pill-sm"
+                aria-label="清除日期"
+              >
                 <X size={12} strokeWidth={2.4} />
               </button>
             )}
@@ -461,8 +508,47 @@ function TodoEditor({ todo, onClose }: { todo: Todo | null; onClose: () => void 
             className="field"
             type="date"
             value={due}
-            onChange={(e) => setDue(e.target.value)}
+            onChange={(e) => void applyDue(e.target.value)}
           />
+
+          {/* v2.13.1：填了时刻才到点提醒，否则退回「提前 1 天」 */}
+          {due && (
+            <div className="mt-2">
+              <label className="label">提醒时刻（留空则提前 1 天提醒）</label>
+              <input
+                className="field"
+                type="time"
+                value={dueTime}
+                onChange={(e) => {
+                  setDueTime(e.target.value);
+                  if (e.target.value && leadMin === undefined) setLeadMin(0);
+                }}
+              />
+              {dueTime && (
+                <div className="mt-2">
+                  <label className="label">提前多久提醒</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {TODO_LEAD_OPTIONS.map((o) => (
+                      <button
+                        key={o.v}
+                        onClick={() => setLeadMin(o.v)}
+                        className={cn('pill', (leadMin ?? 0) === o.v && 'pill-on')}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {schedMsg && (
+            <p className="text-[var(--f-xs)] text-ink-3 mt-2 flex items-start gap-1">
+              <BellOff size={12} strokeWidth={2} className="mt-0.5 shrink-0" />
+              <span>{schedMsg}</span>
+            </p>
+          )}
         </div>
 
         {db.persons.length > 0 && (

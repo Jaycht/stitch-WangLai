@@ -91,6 +91,7 @@ function reducer(db: DB, a: Action): DB {
       const ts = now();
       const td: Todo = {
         id: uid(), title: '', note: undefined, due: undefined,
+        dueTime: undefined, leadMin: undefined,
         done: false, personId: undefined,
         ...a.td, createdAt: ts, updatedAt: ts,
       } as Todo;

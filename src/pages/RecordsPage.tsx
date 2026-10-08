@@ -13,7 +13,10 @@ import { useSuggest, SuggestBox } from '../lib/Suggest';
 import { TopBar, Sheet, Empty, SearchBox, Confirm } from '../lib/ui';
 import { EventPicker, EventChip, EventBtn } from '../lib/EventPicker';
 import { DupHint, DupPicker, AliasEditor } from '../lib/DupHint';
-import { LEAD_OPTIONS, scheduleOne, cancelOne, dueReminders, canNotify } from '../lib/notify';
+import {
+  LEAD_OPTIONS, scheduleOne, cancelOne, canNotify,
+  ensurePermission, permAdvice, needExactWarn, type PermStatus,
+} from '../lib/notify';
 import { useLongPress } from '../lib/useLongPress';
 import { SelectBar, CheckMark } from '../lib/ActionSheet';
 import { cn } from '../lib/utils';
@@ -32,7 +35,6 @@ export function RecordsPage() {
   const [q, setQ] = useState('');
   const [edit, setEdit] = useState<GiftRecord | 'new' | null>(null);
   const [delTarget, setDelTarget] = useState<GiftRecord | null>(null);
-  const [due, setDue] = useState<GiftRecord[]>([]);
 
   /* ---------- 长按：多选模式 ---------- */
   // 有ids = 多选模式中（空 Set 表示不在多选）
@@ -104,11 +106,6 @@ export function RecordsPage() {
 
   const lookup = useMemo(() => makeEventLookup(db.customEvents), [db.customEvents]);
 
-  // 进门检查：有没有该提醒的
-  useEffect(() => {
-    setDue(dueReminders(db));
-  }, [db]);
-
   const list = useMemo(() => {
     let rs = db.records;
     if (tab === 'in') rs = rs.filter((r) => (r.received?.amount ?? 0) > 0);
@@ -145,10 +142,6 @@ export function RecordsPage() {
   const net = totalIn - totalOut;
   const remindCount = db.records.filter((r) => r.remindAt).length;
 
-  const dismissDue = (r: GiftRecord) => {
-    dispatch({ t: 'updateRecord', id: r.id, r: { reminded: true } });
-  };
-
   return (
     <>
       <TopBar
@@ -176,35 +169,7 @@ export function RecordsPage() {
       />
 
       <div className="page-body space-y-3">
-        {/* 待提醒条 */}
-        {due.length > 0 && (
-          <div className="rounded-lg border border-accent-line bg-accent-soft/60 px-2.5 py-2">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <Bell size={14} strokeWidth={2} className="text-accent" />
-              <span className="text-[var(--f-sm)] font-medium text-ink-2">
-                有 {due.length} 场要留意
-              </span>
-            </div>
-            {due.slice(0, 3).map((r) => (
-              <div key={r.id} className="flex items-center gap-2 py-0.5">
-                <span className="text-[var(--f-sm)] text-ink-2 flex-1 min-w-0 truncate">
-                  {nameOf(r.personId)} · {lookup(r.received?.event ?? 'other').label}
-                  <span className="text-ink-3 num"> · {fmtDate(r.remindAt?.slice(0, 10) ?? '')}</span>
-                </span>
-                <button
-                  onClick={() => setEdit(r)}
-                  className="text-[var(--f-xs)] text-accent shrink-0"
-                >查看</button>
-                <button
-                  onClick={() => dismissDue(r)}
-                  className="text-[var(--f-xs)] text-ink-3 shrink-0"
-                >知道了</button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* 汇总条 */}
+        {/*汇总条 */}
         <div className="card px-3.5 py-3">
           <div className="flex items-end gap-1.5">
             <div className="flex-1">
@@ -502,10 +467,19 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
   const [showDupList, setShowDupList] = useState(false);
   const [showAlias, setShowAlias] = useState(false);
   const [notifyOK, setNotifyOK] = useState<boolean | null>(null);
+  /** v2.13.1：当前权限状态，供准点提醒时提示 */
+  const [perms, setPerms] = useState<PermStatus | null>(null);
+  /** v2.13.1：排期结果反馈，不再静默 */
+  const [schedMsg, setSchedMsg] = useState<string | null>(null);
 
   const hasOut = (returned?.amount ?? 0) > 0;
   const hasIn = (received?.amount ?? 0) > 0;
   const canSave = personName.trim().length > 0 && (hasIn || hasOut);
+
+  /** 权限提示语：准点提醒时若无精确闹钟权限要额外提醒可能延迟 */
+  const advice = perms
+    ? permAdvice(perms, (db.settings.remindLeadMin ?? 60) === 0)
+    : null;
 
   // 同名检测：只在「已填了名字」且不是选中了已有档案时提示
   const trimmed = personName.trim();
@@ -552,7 +526,7 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
     onChange: setRelation,
   });
 
-  const save = () => {
+  const save = async () => {
     if (!canSave) return;
     const name = personName.trim();
 
@@ -605,8 +579,23 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
 
     // 排提醒（原生环境才真发通知）
     if (remindAt) {
+      // v2.13.1：首次设提醒时主动申请权限，拿不到就如实告知用户
+      const perms = await ensurePermission();
+      setPerms(perms);
+      const lead = db.settings.remindLeadMin ?? 60;
       const fake: GiftRecord = { ...(rec ?? {}), ...payload, id: rec?.id ?? 'pending' } as GiftRecord;
-      void scheduleOne(fake, nameOf, db.settings.remindLeadMin ?? 60);
+      const res = await scheduleOne(fake, nameOf, lead);
+      if (!res.ok) {
+        setSchedMsg(
+          res.reason === 'past'
+            ? '提醒时间减去提前量后已经过去，本次未排上。改个时间或调小提前量即可。'
+            : '未能排上系统通知，提醒会写入系统日历。'
+        );
+      } else if (res.inexact || needExactWarn(lead, perms)) {
+        setSchedMsg('未获精确闹钟权限，此提醒可能延迟几分钟。要准点的话，请用手机自带「时钟」另设闹钟。');
+      } else {
+        setSchedMsg(null);
+      }
     } else if (rec?.remindAt) {
       void cancelOne(rec.id);
     }
@@ -872,10 +861,22 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
                   ))}
                 </div>
               </div>
-              {notifyOK === false && (
+              {schedMsg && (
                 <p className="text-[var(--f-xs)] text-ink-3 mt-2 flex items-start gap-1">
                   <BellOff size={12} strokeWidth={2} className="mt-0.5 shrink-0" />
-                  <span>系统通知未授权，改用应用内提醒条：打开应用就能看到待办酒席。</span>
+                  <span>{schedMsg}</span>
+                </p>
+              )}
+              {!schedMsg && advice && (
+                <p className="text-[var(--f-xs)] text-ink-3 mt-2 flex items-start gap-1">
+                  <BellOff size={12} strokeWidth={2} className="mt-0.5 shrink-0" />
+                  <span>{advice}</span>
+                </p>
+              )}
+              {!schedMsg && !advice && notifyOK === false && (
+                <p className="text-[var(--f-xs)] text-ink-3 mt-2 flex items-start gap-1">
+                  <BellOff size={12} strokeWidth={2} className="mt-0.5 shrink-0" />
+                  <span>系统通知未授权，提醒会写入系统日历。</span>
                 </p>
               )}
             </>

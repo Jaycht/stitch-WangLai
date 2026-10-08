@@ -305,6 +305,9 @@ export function migrate(input: any): DB {
         title,
         note: str(raw?.note ?? raw?.remark) || undefined,
         due: raw?.due ? normDate(raw.due) : undefined,
+        // v2.13.1：待办提醒时刻与提前量，老数据没有就是undefined（沿用提前 1 天）
+        dueTime: /^\d{1,2}:\d{2}$/.test(str(raw?.dueTime)) ? str(raw.dueTime) : undefined,
+        leadMin: Number.isFinite(raw?.leadMin) ? Number(raw.leadMin) : undefined,
         done: raw?.done === true || raw?.completed === true,
         // personId 也要校验，悬空就丢掉关联
         personId: str(raw?.personId) && personIndex.has(str(raw.personId))

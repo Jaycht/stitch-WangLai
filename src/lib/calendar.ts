@@ -8,7 +8,10 @@
  *
  * 双通道设计：
  *   系统日历（primary）—— 持久、跨重启、用户可见
- *   应用内提醒条（fallback）—— 没授权日历时兜底，不给用户断档
+ *   系统通知（secondary）—— 见 notify.ts，到点弹横幅，两者互为补充
+ *
+ * v2.13.1：不再有「应用内提醒条」兜底（实测使用时长短、价值低），
+ * 改为通知 + 日历双通道，两者都不可用时如实告知用户，不再假装能提醒。
  *
  * 插件：@ebarooni/capacitor-calendar (MIT, ebarooni)
  */
@@ -149,17 +152,22 @@ export async function putRecord(
   }
 }
 
-/** 写一条待办到系统日历 */
+/** 写一条待办到系统日历。v2.13.1：填了 dueTime 就按时刻，否则退回提前 1 天 */
 export async function putTodo(t: Todo, personName: string): Promise<WriteResult> {
   const p = await getPlugin();
   if (!p) return { ok: false, message: '当前环境不支持系统日历', native: false };
   if (!t.due) return { ok: false, message: '未设截止日期', native: false };
 
-  const start = atOf(`${t.due}T09:00`);
+  const hasTime = !!t.dueTime;
+  const start = hasTime
+    ? atOf(`${t.due}T${t.dueTime}`)
+    : atOf(`${t.due}T09:00`);
   if (start === null) return { ok: false, message: '日期格式不对', native: false };
 
   const subject = personName ? `${t.title}（${personName}）` : t.title;
   const title = eventTitleOf('todo', subject);
+  // 有时刻用用户设的提前量，没有就沿用「提前 1 天」
+  const alertMin = hasTime ? (t.leadMin ?? 60) : 1440;
 
   try {
     const existing = await findByTitle(title, t.due);
@@ -173,8 +181,7 @@ export async function putTodo(t: Todo, personName: string): Promise<WriteResult>
       ].filter(Boolean).join('\n'),
       startDate: start,
       endDate: start + 3600000,
-      // 待办一律提前 1 天提醒，符合「提前准备」的直觉
-      alerts: [1440],
+      alerts: alertMin > 0 ? [alertMin] : [],
       isAllDay: false,
     };
     if (existing) {

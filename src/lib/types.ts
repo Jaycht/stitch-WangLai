@@ -206,6 +206,10 @@ export interface Todo {
   note?: string;
   /** 截止日期 YYYY-MM-DD，可空 */
   due?: string;
+  /** 截止时刻 HH:mm，可空。填了才到点提醒，否则沿用「提前 1 天」 */
+  dueTime?: string;
+  /** 提前多少分钟提醒。仅在dueTime 有值时生效；空则用全局设置 */
+  leadMin?: number;
   done: boolean;
   /** 关联到某个人，可空 */
   personId?: string;
@@ -230,12 +234,16 @@ export interface Settings {
   weekStart: 0 | 1;
   /** 通知是否已授权（本地记，避免每次都弹权限框） */
   notifAsked?: boolean;
+  /** 用户已主动处理过通知权限提示，不再打扰（设置页可重新打开） */
+  notifHintDismissed?: boolean;
   /** 提醒提前分钟数 */
   remindLeadMin?: number;
   /** 是否把提醒/待办同步到系统日历（跨重启可靠） */
   useCalendar?: boolean;
   /** 日历权限是否已授予 */
   calendarAsked?: boolean;
+  /** 已放弃申请通知/闹钟权限，只走系统日历 */
+  notifyFallbackOnly?: boolean;
   /** 界面风格：a 青瓷扁平 / b 柔光玻璃 / c 澎湃卡片 */
   theme?: string;
   /** 用户是否手动选过风格（选过就不再自动覆盖） */

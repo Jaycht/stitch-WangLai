@@ -485,7 +485,7 @@ export function SettingsPage() {
         </Sheet>
       )}
 
-      {pending && (
+      {pending && !showRestore && (
         <Sheet
           open
           onClose={() => { setPending(null); setImportRes(null); }}

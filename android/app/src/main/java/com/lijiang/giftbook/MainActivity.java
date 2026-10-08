@@ -114,6 +114,19 @@ public class MainActivity extends BridgeActivity {
      * 用 evaluateJavascript 而不是 addJavascriptInterface：
      *   - 不需要往 WebView 注入 Java 对象，攻击面更小
      *   - 回调本身就是异步的，匹配 JS 的同步返回值约定
+     *
+     * ============⚠️ v2.13.1-hotfix：必须精确匹配，不能用 contains ============
+     * 原实现是 `value.contains("exit")`，而 JS 返回的三种协议是：
+     *     "handled"    → 已消化，不退出
+     *     "ask-exit"   → ★主页面第一次按返回，用户还没确认，要弹二次确认★
+     *     "exit-now"   → 用户已确认，可以退出
+     *
+     * 但 **"ask-exit".contains("exit") == true**！
+     * 所以第一次按返回时，原生看到 "ask-exit" 里含 "exit" 就 finish()了，
+     * **二次确认提示根本没机会显示，App 直接退出**（涛哥真机反馈的 bug）。
+     *
+     * 修法：判断「是不是 exit-now」而不是「是不是含 exit」，
+     * 且必须排除 "ask-exit"（它是唯一含 "exit" 但不该退出的值）。
      */
     private void dispatchToWeb() {
         WebView web = getBridge() != null ? getBridge().getWebView() : null;
@@ -123,15 +136,26 @@ public class MainActivity extends BridgeActivity {
             return;
         }
         web.evaluateJavascript(
-                "(function(){try{return window.__wlOnBack__?window.__wlOnBack__():'exit'}"
-                        + "catch(e){return 'exit'}})()",
+                "(function(){try{return window.__wlOnBack__?window.__wlOnBack__():'exit-now'}"
+                        + "catch(e){return 'exit-now'}})()",
                 value -> {
-                    // value 是JS 返回值的 JSON 编码：字符串带引号，如 "\"handled\""
-                    if (value == null || value.contains("exit")) {
-                        // JS 说「没人管，请退出」
-                        finish();
+                    if (value == null) {
+                        // JS 没给结果：无法确认用户意图，保守起见不退出
+                        return;
                     }
-                    // 'handled' → 什么都不做，WebView 继续显示
+                    // JSON 编码后字符串带引号，如 "\"handled\""，先剥掉
+                    String v = value.replace("\"", "").trim();
+
+                    if ("handled".equals(v)) {
+                        // 有弹层/多选/二级页在处理，本次不动
+                        return;
+                    }
+                    if ("ask-exit".equals(v)) {
+                        // 主页面第一次按返回：JS 已弹出「再按一次退出」，本次不放行
+                        return;
+                    }
+                    // "exit-now" 或异常兜底 → 才真正退出
+                    finish();
                 });
     }
 }

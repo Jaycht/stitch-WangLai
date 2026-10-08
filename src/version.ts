@@ -1,7 +1,7 @@
 /** 版本、作者与更新日志 */
 
 /** 应用版本号 */
-export const VERSION = '2.13.1';
+export const VERSION = '2.13.2';
 
 /** 作者（显示在「关于」页与各版本更新日志末尾） */
 export const AUTHOR = '陈洪涛';
@@ -14,6 +14,15 @@ export const COPYRIGHT =
 export const VERSION_LABEL = `v${VERSION}　${COPYRIGHT}`;
 
 export const CHANGELOG: { ver: string; items: string[] }[] = [
+  {
+    ver: '2.13.2',
+    items: [
+      '修复退出提醒不弹：原生层判断返回协议时误把「ask-exit」当成允许退出，导致二次确认形同虚设',
+      '修复首页与设置页都不显示权限引导：权限探测被国产 ROM 卡住时整条判断永不完成',
+      '权限探测每项独立超时，任一项失灵也能正常显示引导',
+      '修复右上角按钮底部与标题栏底部重合：顶栏按钮改用与标题栏等高的高度',
+    ],
+  },
   {
     ver: '2.13.1',
     items: [

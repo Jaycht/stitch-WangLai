@@ -14,7 +14,7 @@
  *   系统日历（主，跨重启/跨杀进程）→ 系统通知（辅，自动降级仍响）→ 无兜底
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Bell, ChevronRight, Check } from 'lucide-react';
 import {
   checkPerms, ensurePermission, type PermStatus,
@@ -36,6 +36,17 @@ export interface PermCardState {
   allReady: boolean;
 }
 
+/** 单项探测超时（毫秒）。国产 ROM 上插件可能不响应，必须兜住 */
+const PROBE_TIMEOUT = 2500;
+
+/** 给任意 Promise 加超时保护，避免一个卡住拖死整条链 */
+function probeTimeout<T>(p: Promise<T>, fallback: T): Promise<T> {
+  return Promise.race([
+    p.catch(() => fallback),
+    new Promise<T>((r) => setTimeout(() => r(fallback), PROBE_TIMEOUT)),
+  ]);
+}
+
 const INITIAL: PermCardState = {
   show: false, perms: null,
   notifOk: false, exactOk: false, calendarOk: false, allReady: false,
@@ -44,32 +55,43 @@ const INITIAL: PermCardState = {
 /**
  * 权限检测 + 申请。所有入口共用，保证逻辑一致。
  *
- * @param dismissed 用户是否点过「不再提示」
+ * ⚠️ v2.13.1-hotfix：绝不能用单个 `Promise.all` 包所有探测。
+ * 国产 ROM 上 `import()` 插件或权限查询可能**永不 resolve**，
+ * Promise.all 会一起挂起 → 状态永远停在 show:false → 卡片永不显示。
+ * 每项独立超时 + 兜底值，保证「最差也能显示卡片引导用户」。
+ *
+ * @param dismissed 用户是否点过「不再提示」（只影响首页横幅）
  */
 export function usePermGuide(dismissed?: boolean) {
   const { db, dispatch } = useApp();
   const [st, setSt] = useState<PermCardState>(INITIAL);
 
+  // 用 ref 读calendarAsked，避免它作为依赖导致 effect 反复触发
+  const calAskedRef = useRef(db.settings.calendarAsked);
+  calAskedRef.current = db.settings.calendarAsked;
+
   const refresh = useCallback(async () => {
-    const [perms, calNative, calGranted] = await Promise.all([
-      checkPerms(),
-      canUseCalendar(),
-      // 日历权限状态借calendarAsked 记录的用户选择，避免重复弹窗
-      Promise.resolve(db.settings.calendarAsked === true),
+    // 三项各自独立超时，互不拖累
+    const [perms, calGranted] = await Promise.all([
+      probeTimeout(checkPerms(), null),
+      probeTimeout(canUseCalendar().then(() => true), false),
     ]);
-    const notifOk = perms.canPost;
-    const exactOk = perms.canExact;
-    const calendarOk = calGranted;
-    // 注意：dismissed 只影响**首页横幅**。
-    // 设置页是常驻入口，用户跳过后仍要能回来开，所以这里不传 dismissed。
+
+    // 通知权限拿不到时一律按「未开启」处理 —— 宁可多提示，不可漏提示
+    const notifOk = perms?.canPost === true;
+    const exactOk = perms?.canExact === true;
+    const calendarOk = calAskedRef.current === true;
+    // perms 为 null（探测超时）时也要显示卡片，否则等于没引导
+    const show = !(notifOk && calendarOk);
     setSt({
-      show: !(notifOk && calendarOk),
-      perms,
+      show,
+      perms: perms ?? { available: true, display: 'denied', exactAlarm: 'denied', canPost: false, canExact: false },
       notifOk, exactOk, calendarOk,
       allReady: notifOk && calendarOk,
     });
-  }, [db.settings.calendarAsked]);
+  }, []);
 
+  // 只在挂载时跑一次；后续靠 refresh() 手动触发
   useEffect(() => { void refresh(); }, [refresh]);
 
   /**

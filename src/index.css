@@ -357,6 +357,19 @@
   font-size: var(--f-sm);
   border-radius: calc(var(--r-ctl) - 2px);
 }
+/* ---------- 顶栏右侧紧凑按钮 ----------
+   v2.13.1-hotfix：涛哥反馈「右上角按钮底部与标题栏底部重合」。
+   根因：`.btn-sm` 用 --h-sm(28px)，而顶栏 `.topbar` 里的
+   返回按钮/控件用 --h-ctl(36px)，矮 8px 又被 align-items:center
+   垂直居中，看上去就往下沉、底部与标题栏贴合。
+   修法：顶栏内的紧凑按钮**不用 --h-sm**，改用 --h-ctl（36px），
+   与顶栏其它控件严格等高。只影响顶栏，不动列表页的小按钮。 */
+.topbar .btn-sm {
+  height: var(--h-ctl);
+  padding: 0 12px;
+  font-size: var(--f-md);
+}
+
 /* ---------- 删除按钮：全app 统一样式 ----------
    涛哥要求：所有删除按钮统一用红色醒目标注。
    问题记录：原来 btn-danger 与 btn-ghost 叠加时，

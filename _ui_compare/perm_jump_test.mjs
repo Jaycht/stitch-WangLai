@@ -46,8 +46,18 @@ check('Android 8+ 优先直达通知页',
   java.includes('Settings.ACTION_APP_NOTIFICATION_SETTINGS'));
 check('精确闹钟页有 SDK 版本门槛（31+ 才用）',
   /Build\.VERSION\.SDK_INT >= Build\.VERSION_CODES\.S/.test(java));
+/**
+ * setData(uri, null) 是绕开厂商 ROM 拦截的关键手法。
+ * 注意必须从 getContext() 取 PackageManager——
+ * Capacitor 的 Plugin 不是 Activity，没有 getPackageManager() 方法。
+ */
 check('setData(uri, null) 绕开厂商 ROM 拦截',
-  java.includes('setData(getPackageManager().getPackageFor'));
+  /setData\(\s*getContext\(\)\.getPackageManager\(\)/.test(java) &&
+  /getPackageFor\(getContext\(\)\.getPackageName\(\)\),\s*null\)/.test(java));
+check('从 getContext() 取 PackageManager（Plugin 不是 Activity）',
+  /getContext\(\)\.getPackageManager\(\)/.test(java) &&
+  !/(?<![.\w])getPackageManager\(\)/.test(
+    java.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*/g, '')));
 check('每个跳转都有 try-catch 兜底（不会崩）',
   (java.match(/catch\s*\(Exception/g) || []).length >= 3);
 

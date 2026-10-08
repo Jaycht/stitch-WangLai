@@ -31,27 +31,42 @@ const rec = fs.readFileSync('src/pages/RecordsPage.tsx', 'utf8');
 const per = fs.readFileSync('src/pages/PersonsPage.tsx', 'utf8');
 
 /* ---------- 1. 等宽：涛哥要求删除与保存一致 ---------- */
-console.log('\n[1] 删除与保存等宽（不刻意突出删除）');
+console.log('\n[1] 删除按钮：方案 A（淡红底 + 加粗，与保存等宽）');
 /**
- * ★v2.13.3 设计变更（涛哥第二次截图）：
- *   flex-1 + btn-danger 实心红底虽然「等宽」了，但两块红底抢视觉，
- *   涛哥反馈「太大、突兀、与整体风格不相容」。
- *   最终对齐全app 确认框（ui.tsx Confirm）的既有风格：
- *   次要操作（取消/删除）用**无底色红字**，主操作（保存）才用实心按钮。
- *   两者仍**等宽**（都是 flex-1），保持涛哥上一轮「保持一致」的要求。
+ * ★v2.14.1 方案 A（涛哥 2026-10-09 拍板）
+ *   上一版是「纯文字无底色」，涛哥指正：旁边是实心保存按钮，
+ *   纯文字「显得很单薄」—— **纯文字的块感≈0，视觉重量 5% vs 100%**。
+ *   方案 A：加 7% 淡红底 + 字重 600 → 视觉重量补到约 30%，
+ *   宽度仍flex-1 与保存等宽，高度仍 var(--h-btn)（大字模式自适应）。
  */
+const cssA = fs.readFileSync('src/index.css', 'utf8');
+// 取 .btn-danger 规则的声明体（避开正则转义，直接按字符串切）
+const ruleIdx = cssA.indexOf('button.btn-danger:not([class*="pill-"]) {');
+const declA = ruleIdx >= 0
+  ? cssA.slice(ruleIdx, cssA.indexOf('}', ruleIdx))
+  : '';
+check('.btn-danger 规则存在', ruleIdx >= 0);
+check('  有淡红底（解决「很单薄」）',
+  declA.includes('background: rgba(198, 40, 40, 0.07)'),
+  declA.split('background')[1] || '未找到 background');
+check('  字重 600（7% 淡底撑不住视觉重量，靠加粗立住）',
+  declA.includes('font-weight: 600'));
+check('  红字 #C62828', declA.includes('color: #C62828'));
+check('  高度用 var(--h-btn)（大字模式自适应）',
+  declA.includes('height: var(--h-btn)'));
+check('  不是实心红底（不与主按钮抢视觉）',
+  !declA.includes('background: #C62828'));
+check('  有按下反馈（active 加深）',
+  cssA.includes('button.btn-danger:not([class*="pill-"]):active'));
+
 check('记录页删除用 flex-1（与保存等宽）',
-  /className="flex-1 h-\[var\(--h-btn\)\][\s\S]{0,120}onClick=\{deleteRec\}/.test(rec.replace(/\s*\n\s*/g, ' ')));
+  /className="btn-danger flex-1" onClick=\{deleteRec\}/.test(rec.replace(/\s*\n\s*/g, ' ')));
 check('人员页删除用 flex-1（与编辑等宽）',
-  /className="flex-1 h-\[var\(--h-btn\)\][\s\S]{0,160}onDelete\(person/.test(per.replace(/\s*\n\s*/g, ' ')));
-// 只查 className 里的 w-[88px]，注释里记录尝试过程不算
-check('记录页 className 里已无 w-[88px]',
-  !/className="[^"]*w-\[88px\]/.test(rec));
-check('人员页 className 里已无 w-[88px]',
-  !/className="[^"]*w-\[88px\]/.test(per));
-check('删除改为无底色红字（不再抢视觉）',
-  /text-\[#C62828\] active:bg-\[#C62828\]\/10/.test(rec));
-check('删除不再是实心红底 btn-danger', !/btn-danger btn flex-1/.test(rec));
+  /className="btn-danger flex-1"[\s\S]{0,120}onDelete\(person/.test(per.replace(/\s*\n\s*/g, ' ')));
+check('两处删除按钮都不再手写行内样式（统一走 CSS 类）',
+  !rec.includes('text-[#C62828] active:bg-') &&
+  !per.includes('text-[#C62828] active:bg-'),
+  '样式应集中在 index.css，避免两处分叉');
 check('保存仍是实心主按钮（层级分明）',
   rec.includes('className="btn flex-1" onClick={save}'));
 
@@ -108,24 +123,38 @@ check('固定 64px 在大字模式下装不下（这就是原 bug 的深层原�
 check('等宽方案在大字模式下自动容纳', halfW >= 25 * 2 + 32);
 
 /* ---------- 4. .btn-danger 版式（上一轮已修，确认仍在）---------- */
-console.log('\n[4] .btn-danger 版式修复未被回退');
-const dm = css.match(/button\.btn-danger:not\(\[class\*="pill-"\]\)\s*\{([^}]*)\}/);
-check('.btn-danger:not 规则仍在', dm !== null);
-if (dm) {
-  for (const p of ['display', 'align-items', 'justify-content', 'height', 'font-size', 'padding']) {
-    check(`  有 ${p}`, new RegExp(`${p}\\s*:`).test(dm[1]));
-  }
-  check('  高度用 --h-btn（与保存严格等高）', /height:\s*var\(--h-btn\)/.test(dm[1]));
-}
-check('作用域隔离仍在（不撑大工具条小按钮）',
-  css.includes('btn-danger:not([class*="pill-"])'));
+console.log('\n[4] 删除按钮版式完整（不是退化样式）');
+const d4 = declA;
+check('  display: flex（文字居中，不挤在角落）', d4.includes('display: flex'));
+check('  align-items: center', d4.includes('align-items: center'));
+check('  justify-content: center', d4.includes('justify-content: center'));
+check('  有 border-radius（与大按钮圆角一致）', d4.includes('border-radius'));
+check('  有 font-size（不是浏览器默认小字）', d4.includes('font-size'));
+check('  有 padding（左右留白从容）', d4.includes('padding'));
+check('  有 transition（按下有过渡）', d4.includes('transition'));
+check('  作用域仍排除 pill-（不撑大工具条小按钮）',
+  cssA.includes('button.btn-danger:not([class*="pill-"])'));
 
-/* ---------- 5. 删除按钮仍保持红色醒目 ---------- */
-console.log('\n[5] 删除的红色醒目样式未丢失');
-check('.btn-danger 仍是红底白字',
-  /btn-danger:not[\s\S]*?background:\s*#C62828/.test(css) && /btn-danger:not[\s\S]*?color:\s*#fff/.test(css));
-check('仍带白色描边保证红底对比度',
-  /btn-danger:not[\s\S]*?border:\s*1px solid rgba\(255,\s*255,\s*255/.test(css));
+
+console.log('\n[5] 确认框用实心红（与底栏淡红底分层）');
+const solidIdx = cssA.indexOf('button.btn-danger-solid:not([class*="pill-"]) {');
+const solidDecl = solidIdx >= 0
+  ? cssA.slice(solidIdx, cssA.indexOf('}', solidIdx))
+  : '';
+check('确认框有独立的实心红类', solidIdx >= 0);
+check('  实心红底 #C62828（不可逆动作要更醒目）',
+  solidDecl.includes('background: #C62828'));
+check('  白字（红底白字，对比度够）', solidDecl.includes('color: #fff'));
+check('  白色描边（防历史「红字红底看不见」）',
+  solidDecl.includes('rgba(255, 255, 255, 0.28)'));
+check('  同样用 var(--h-btn)（与其它按钮等高）',
+  solidDecl.includes('height: var(--h-btn)'));
+
+console.log('\n[6] 工具条小按钮不受污染');
+check('工具条用 btn-danger-tiny（只改颜色不改版式）',
+  fs.readFileSync('src/lib/ActionSheet.tsx', 'utf8').includes('btn-danger-tiny'));
+check('btn-danger-tiny 不设 height（版式交给 pill-sm）',
+  !cssA.match(/\.btn-danger-tiny\s*\{[^}]*height/));
 
 console.log('\n' + '='.repeat(68));
 console.log(`通过 ${pass} / ${pass + fail}`);

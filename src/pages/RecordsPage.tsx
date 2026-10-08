@@ -566,11 +566,7 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
                主操作（保存）才用实心按钮。
                这样删除不抢视觉、保存仍是明确的主动作；
                高度用 var(--h-btn) 而非写死 px，关怀模式大字下自动适配。 */
-            <button
-              className="flex-1 h-[var(--h-btn)] text-[var(--f-md)] font-medium
-                         text-[#C62828] active:bg-[#C62828]/10"
-              onClick={deleteRec}
-            >删除</button>
+            <button className="btn-danger flex-1" onClick={deleteRec}>删除</button>
           )}
           <button className="btn flex-1" onClick={save} disabled={!canSave}>
             {canSave ? '保存' : '填人和金额'}
@@ -984,7 +980,7 @@ function DeleteSheet({
         <>
           <button className="btn-ghost flex-1" onClick={onClose}>取消</button>
           <button
-            className="btn btn-danger flex-1"
+            className="btn-danger-solid flex-1"
             onClick={() => {
               dispatch({ t: 'removeRecord', id: rec.id });
               onClose();

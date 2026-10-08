@@ -394,6 +394,25 @@
    凡是 `pill-sm btn-danger` 这种组合（小工具条上的删除），
    由 .pill-sm 负责版式（28px 小按钮），不应用这里的 36px。
    .pill-sm 定义在本类之后，同优先级下会覆盖 height/font-size。 */
+/**
+ * 破坏性操作按钮（删除）—— 方案 A（涛哥 2026-10-09 拍板）
+ *
+ * ===== 为什么是「淡红底 + 加粗」而不是纯文字 =====
+ * v2.14.1 我把它做成纯文字（无底色），涛哥截图指正：
+ * 「改成纯文字后，尤其旁边有个全色的保存按钮，显得删除两个字很单薄」
+ * —— **纯文字的「块感」几乎为零**，而旁边实心绿按钮是满色块，
+ * 两者并排视觉重量是 5% vs 100%，不是「主次分明」而是
+ * 「一个像控件、一个像没做完」。
+ *
+ * 方案 A 的取舍：
+ *   - 只加 **7% 透明度的红底** + 字重提到 600，视觉重量补到约 30%
+ *   - **宽度仍 flex-1 与保存等宽**（涛哥上一轮明确要求保持一致）
+ *   - 高度仍 var(--h-btn)，**不写死 px**，关怀模式大字下自动等比放大
+ *   - 不用实心红底，避免与主色按钮抢视觉、也避免误触诱导
+ *
+ * 作用域仍要排除 pill- 组合：.pill-sm 定义在本类之后，
+ * 同优先级下会覆盖 height，不加排除会把工具条小按钮撑成 36px。
+ */
 button.btn-danger:not([class*="pill-"]) {
   display: flex;
   align-items: center;
@@ -403,18 +422,62 @@ button.btn-danger:not([class*="pill-"]) {
   padding: 0 16px;
   border-radius: var(--r-ctl);
   font-size: var(--f-md);
-  background: #C62828;
-  color: #fff;
-  font-weight: var(--w-med);
-  /* 白色描边，保证红底上文字的对比度 */
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  transition: opacity 0.12s;
+  /* 淡红底：给「块感」，但绝不与实心主按钮抢视觉 */
+  background: rgba(198, 40, 40, 0.07);
+  color: #C62828;
+  /* 加粗是第二个关键 —— 7% 的淡底撑不住视觉重量，600 才能立住 */
+  font-weight: 600;
+  transition: background 0.12s;
 }
-.btn-danger:active { background: #A51F1F; }
-/* 破坏 btn-ghost 的文字色覆盖 */
-.btn-danger.btn-ghost {
+/* 按下时加深一点，给出可点击的反馈 */
+button.btn-danger:not([class*="pill-"]):active {
+  background: rgba(198, 40, 40, 0.16);
+}
+
+/**
+ * 最终确认用的删除按钮 —— **实心红**（v2.14.1 方案 A 只用于编辑页底栏）。
+ *
+ * 为什么要分层：
+ *   - 编辑页底栏的删除是「常态操作」，淡红底 + 加粗已足够（A 方案）
+ *   - 确认框里的「确认删除」是**不可逆的最终动作**，
+ *     必须比旁边「取消」更醒目，否则用户会误以为两者地位相同
+ * 历史上有过「红字红底看不见」的教训，这次用实心红 + 白字 + 描边保证对比度。
+ */
+button.btn-danger-solid:not([class*="pill-"]) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--h-btn);
+  padding: 0 16px;
+  border-radius: var(--r-ctl);
+  font-size: var(--f-md);
+  font-weight: 600;
   background: #C62828;
   color: #fff;
+  /* 白色描边，保证红底上文字的对比度（曾出过红字红底看不见的问题） */
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  transition: background 0.12s;
+}
+button.btn-danger-solid:not([class*="pill-"]):active {
+  background: #A51F1F;
+}
+
+/**
+ * 工具条上的小删除按钮（28px）。
+ *
+ * 为什么要单独一个类（v2.14.1）：
+ *   `.btn-danger` / `.btn-danger-solid` 都会把 height 设成 var(--h-btn)(36px)，
+ *   而 ActionSheet 工具条上的删除按钮是 `pill-sm`（28px），
+ *   同优先级下**定义在后的会覆盖**——
+ *   之前没隔离时那个小按钮会被撑成 36px，比旁边的28px 按钮高出一截。
+ * 所以这里只给**颜色**，版式完全交给 .pill-sm。
+ */
+.btn-danger-tiny {
+  color: #C62828;
+}
+.btn-danger-tiny:active {
+  background: rgba(198, 40, 40, 0.10);
 }
 /* 危险确认框里的按钮也统一 */
 .btn-danger-outline {

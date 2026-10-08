@@ -598,8 +598,7 @@ function PersonDetail({
             次要操作用无底色文字按钮，主操作才用实心按钮。
             高度用 var(--h-btn)，关怀模式大字下自动适配。 */}
           <button
-            className="flex-1 h-[var(--h-btn)] text-[var(--f-md)] font-medium
-                       text-[#C62828] active:bg-[#C62828]/10"
+            className="btn-danger flex-1"
             onClick={() => onDelete(person, stat.records.length)}
             aria-label="删除这个人和它的全部记录"
           >删除</button>

@@ -137,7 +137,7 @@ export function SelectBar({
       <button
         onClick={onDelete}
         disabled={count === 0}
-        className="pill-sm shrink-0 flex items-center gap-1 btn-danger"
+        className="pill-sm shrink-0 flex items-center gap-1 btn-danger-tiny"
         aria-label="删除所选"
       >
         <Trash2 size={12} strokeWidth={2.2} />

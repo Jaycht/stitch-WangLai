@@ -637,7 +637,13 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
       footer={
         <>
           {!isNew && (
-            <button className="btn-danger w-16 shrink-0" onClick={deleteRec}>删除</button>
+            /* v2.13.2-hotfix（涛哥：删除要和保存保持一致，不要刻意突出）：
+               - 原来 w-16(64px) 固定宽，「删除」两字挤在小红块里、比保存矮
+               - 后来我改成 88px，但那是「反过来突出删除」，方向也不对
+               - 现在**删除与保存等宽**（都用 flex-1），视觉最稳。
+               附带好处：不写死 px，关怀模式大字下
+               --h-btn 会随字号变高，固定宽度必然装不下，等宽则自动适配。 */
+            <button className="btn-danger btn flex-1" onClick={deleteRec}>删除</button>
           )}
           <button className="btn flex-1" onClick={save} disabled={!canSave}>
             {canSave ? '保存' : '填人和金额'}

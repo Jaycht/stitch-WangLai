@@ -591,12 +591,14 @@ function PersonDetail({
       title={displayName || person.name}
       footer={
         <>
-          {/* 删除按钮宽度从 44px 提到 64px：
-              原来「删 44px : 编辑档案 334px」= 1:7.6，
-              删除成了小方块，视觉失衡且容易误触。
-              1:4.5 符合 M3「次要操作不小于主要的 1/4」。 */}
+          {/* 删除按钮（涛哥：删除要和保存保持一致，不要刻意突出）：
+              原来固定 w-16(64px) → 「删除」挤在小红块里、比编辑矮；
+              后来我又改成 88px，那是「反过来突出删除」，方向也不对。
+              现在**与编辑按钮等宽**（都用 flex-1）。
+              不写死 px 的额外好处：关怀模式大字下 --h-btn 会随字号变高，
+              固定宽度必然装不下两个中文字，等宽则自动适配。 */}
           <button
-            className="btn-danger w-16 shrink-0"
+            className="btn-danger btn flex-1"
             onClick={() => onDelete(person, stat.records.length)}
             aria-label="删除这个人和它的全部记录"
           >删除</button>

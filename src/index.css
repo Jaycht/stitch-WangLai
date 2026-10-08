@@ -375,13 +375,34 @@
    问题记录：原来 btn-danger 与 btn-ghost 叠加时，
    btn-ghost 把文字设成红色、btn-danger 设成暗红底 ——
    结果「删除」二字变成红字红底，看不见（截图确认）。
-   修正：删除一律「红底白字」，不用 ghost 变体。 */
-.btn-danger {
+   修正：删除一律「红底白字」，不用 ghost 变体。
+
+   ★v2.13.2-hotfix：.btn-danger **不是 .btn 的变体**，是独立类。
+   之前它只有颜色、没有 display/height/font-size/padding，
+   所以凡是没同时写 `class="btn btn-danger"` 的地方（如
+   RecordsPage 的 `btn-danger w-16`），按钮会退化成浏览器默认
+   inline-block ——表现就是「删除」两个字挤在 64px 小红块里、
+   高度也比旁边的保存按钮矮一截（涛哥截图确认）。
+   修法：把 .btn 的基础版式全部补齐，让它单独用也能正常显示。 */
+/* ⚠️ 作用域收紧：只用「单独一个类」的按钮才补版式。
+   凡是 `pill-sm btn-danger` 这种组合（小工具条上的删除），
+   由 .pill-sm 负责版式（28px 小按钮），不应用这里的 36px。
+   .pill-sm 定义在本类之后，同优先级下会覆盖 height/font-size。 */
+button.btn-danger:not([class*="pill-"]) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--h-btn);
+  padding: 0 16px;
+  border-radius: var(--r-ctl);
+  font-size: var(--f-md);
   background: #C62828;
   color: #fff;
   font-weight: var(--w-med);
   /* 白色描边，保证红底上文字的对比度 */
   border: 1px solid rgba(255, 255, 255, 0.28);
+  transition: opacity 0.12s;
 }
 .btn-danger:active { background: #A51F1F; }
 /* 破坏 btn-ghost 的文字色覆盖 */

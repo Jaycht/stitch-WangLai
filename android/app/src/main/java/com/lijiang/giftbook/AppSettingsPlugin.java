@@ -57,8 +57,14 @@ public class AppSettingsPlugin extends Plugin {
             Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
             // ★ 关键：厂商 ROM 会校验 data 是否为 null 来判断是否为「敏感操作」，
             //   setData(uri, null) 能绕开这个拦截（各家都吃这一招）
-            i.setData(getPackageManager().getPackageFor(getContext().getPackageName()),
-                    null);
+            //
+            // ⚠️ 注意：`getPackageManager()` 是 Activity/Context 的方法，
+            //   **Plugin 不是 Activity，没有这个方法**。
+            //   必须从 getContext() 取，否则编译报
+            //   "cannot find symbol: method getPackageManager()"
+            //   （2026-10-08 CI 上真实踩过这个坑）
+            i.setData(getContext().getPackageManager()
+                    .getPackageFor(getContext().getPackageName()), null);
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getContext().startActivity(i);
             JSObject r = new JSObject();

@@ -136,7 +136,7 @@ export function Confirm({
 
   return (
     <div className="fixed inset-0 bg-black/45 z-50 flex items-center justify-center p-6">
-      <div className="bg-card rounded-xl w-full max-w-[320px] overflow-hidden">
+      <div className="bg-card rounded-xl w-full max-w-[min(20rem,calc(100vw-2rem))] overflow-hidden">
         <div className="px-4 pt-4 pb-3">
           <div className="text-[length:var(--f-lg)] font-semibold mb-1.5">{title}</div>
           <div className="text-[length:var(--f-md)] text-ink-2 leading-relaxed">{message}</div>
@@ -144,14 +144,14 @@ export function Confirm({
         <div className="flex border-t border-line">
           <button
             onClick={onCancel}
-            className="flex-1 h-11 text-[length:var(--f-lg)] text-ink-2 active:bg-paper"
+            className="flex-1 h-[var(--h-btn)] text-[length:var(--f-lg)] text-ink-2 active:bg-paper"
           >
             取消
           </button>
           <button
             onClick={onOk}
             className={cn(
-              'flex-1 h-11 text-[length:var(--f-lg)] font-medium border-l border-line',
+              'flex-1 h-[var(--h-btn)] text-[length:var(--f-lg)] font-medium border-l border-line',
               danger ? 'text-[#C62828] active:bg-[#C62828]/10' : 'text-accent active:bg-paper',
             )}
           >

@@ -34,8 +34,11 @@ def close_sheet(pg):
     pg.wait_for_timeout(350)
 
 def open_editor(pg):
+    # v2.14.6：点加号先弹方向菜单，选一个方向才进编辑器
     pg.wait_for_selector("button[aria-label='记一笔']", timeout=6000)
     pg.click("button[aria-label='记一笔']")
+    pg.wait_for_selector("text=这次是谁办事？", timeout=5000)
+    pg.click("button:has-text('对方办事')")
     pg.wait_for_selector("text=记一笔", timeout=5000)
     pg.wait_for_timeout(300)
 
@@ -84,12 +87,13 @@ with sync_playwright() as p:
     pg.wait_for_timeout(500)
     open_editor(pg)
 
-    ok("关怀模式事由默认收起(有展开入口)", pg.query_selector("button:has-text('展开')") is not None)
-    ok("关怀模式事由默认收起(未铺开)", pg.query_selector("text=喜事") is None)
-    # 展开仍可用
-    pg.click("button:has-text('展开')"); pg.wait_for_timeout(300)
-    ok("关怀模式仍可展开事由", pg.query_selector("text=喜事") is not None)
-    pg.click("button:has-text('收起')"); pg.wait_for_timeout(250)
+    # v2.14.6：大字模式已把「事由」整组隐藏（原则：越简单越好），
+    # 所以这里不再测事由折叠，改测「大字模式确实没有事由字段、且录入仍可用」。
+    ok("关怀模式录入无事由字段(已精简)", pg.query_selector("text=事由") is None)
+    ok("关怀模式仍有金额字段", pg.query_selector("text=金额") is not None)
+    ok("关怀模式仍有底部保存动作",
+       pg.query_selector("button:has-text('保存')") is not None
+       or pg.query_selector("button:has-text('填人和金额')") is not None)
 
     # 姓名下方常驻快捷 chip 应隐藏
     ok("关怀模式隐藏姓名快捷chip", pg.query_selector("button.pill:has-text('王建国')") is None)

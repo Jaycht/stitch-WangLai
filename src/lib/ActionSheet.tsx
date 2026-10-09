@@ -95,54 +95,67 @@ export function SelectBar({
   title?: string;
 }) {
   const canEdit = count === 1 && !!onEdit;
+  /* v2.14.6：分两行 —— 上一行「关闭 + 已选 N」，下一行「全选 / 编辑 / 删除」。
+     原因：关怀模式下字号放大到 2.1 倍，单行放不下三个按钮，
+     「删除」会被挤出屏幕右边界（涛哥真机截图确认）。
+     「取消全选」比「全选」还多两个字，更挤。
+     三个按钮都用 flex-1 均分，任何字号下都不会被挤出。
+     ★ 教训：横排按钮绝不能写死宽度或依赖 shrink-0，
+       必须让它们可换行 + flex-1 均分。 */
   return (
     <div
-      className="flex items-center gap-2 card px-2.5 h-[var(--h-btn)]"
+      className="flex flex-col gap-1.5 card px-2.5 py-1.5"
       style={{ boxShadow: '0 0 0 2px var(--color-accent)' }}
     >
-      <button
-        onClick={onCancel}
-        className="shrink-0 p-1 -m-1"
-        aria-label="退出多选"
-      >
-        <X size={16} strokeWidth={2.2} className="text-ink-2" />
-      </button>
-      <span className="text-[length:var(--f-sm)] num shrink-0">
-        已选 <b className="text-accent">{count}</b> {title}
-      </span>
-      <div className="flex-1" />
-      <button
-        onClick={onSelectAll}
-        className={cn(
-          'pill-sm shrink-0 flex items-center gap-1',
-          allSelected && 'pill-on',
-        )}
-        aria-label="全选"
-      >
-        {allSelected && <Check size={12} strokeWidth={3} />}
-        {allSelected ? '取消全选' : '全选'}
-      </button>
-      {onEdit && (
+      {/* 第一行：关闭 + 已选 N */}
+      <div className="flex items-center gap-2">
         <button
-          onClick={onEdit}
-          disabled={!canEdit}
-          className="pill-sm shrink-0 flex items-center gap-1"
-          aria-label="编辑所选"
-          title={canEdit ? '编辑这条' : '只能选中一条才能编辑'}
+          onClick={onCancel}
+          className="shrink-0 p-1 -m-1"
+          aria-label="退出多选"
         >
-          <Pencil size={12} strokeWidth={2.2} />
-          编辑
+          <X size={16} strokeWidth={2.2} className="text-ink-2" />
         </button>
-      )}
-      <button
-        onClick={onDelete}
-        disabled={count === 0}
-        className="pill-sm shrink-0 flex items-center gap-1 btn-danger-tiny"
-        aria-label="删除所选"
-      >
-        <Trash2 size={12} strokeWidth={2.2} />
-        删除
-      </button>
+        <span className="text-[length:var(--f-sm)] num shrink-0">
+          已选 <b className="text-accent">{count}</b> {title}
+        </span>
+      </div>
+
+      {/* 第二行：全选 / 编辑 / 删除，均分宽度，任何字号都不溢出 */}
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={onSelectAll}
+          className={cn(
+            'pill-sm flex-1 min-w-0 justify-center items-center gap-0.5 whitespace-nowrap',
+            allSelected && 'pill-on',
+          )}
+          aria-label="全选"
+        >
+          {allSelected && <Check size={12} strokeWidth={3} />}
+          {allSelected ? '取消' : '全选'}
+        </button>
+        {onEdit && (
+          <button
+            onClick={onEdit}
+            disabled={!canEdit}
+            className="pill-sm flex-1 min-w-0 justify-center items-center gap-0.5 whitespace-nowrap"
+            aria-label="编辑所选"
+            title={canEdit ? '编辑这条' : '只能选中一条才能编辑'}
+          >
+            <Pencil size={12} strokeWidth={2.2} />
+            编辑
+          </button>
+        )}
+        <button
+          onClick={onDelete}
+          disabled={count === 0}
+          className="pill-sm flex-1 min-w-0 justify-center items-center gap-0.5 whitespace-nowrap btn-danger-tiny"
+          aria-label="删除所选"
+        >
+          <Trash2 size={12} strokeWidth={2.2} />
+          删除
+        </button>
+      </div>
     </div>
   );
 }

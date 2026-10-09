@@ -43,7 +43,10 @@ with sync_playwright() as p:
     pg.wait_for_selector("text=往来记录", timeout=8000)
 
     # 1) 时间输入框默认当前时刻（新记一笔）
+    # v2.14.6：点加号先弹方向菜单，选「对方办事」才进编辑器
     pg.click("button[aria-label='记一笔']")
+    pg.wait_for_selector("text=这次是谁办事？", timeout=5000)
+    pg.click("button:has-text('对方办事')")
     pg.wait_for_selector("text=记一笔", timeout=5000)
     tval = pg.eval_on_selector("input[type=time]", "el => el.value")
     ok("时间框默认有值(新记录)", bool(tval) and len(tval)==5, f"value={tval!r}")
@@ -68,6 +71,8 @@ with sync_playwright() as p:
 
     # 3) 建议框字号变大（f-lg=14px，旧为 f-md=13px）
     pg.click("button[aria-label='记一笔']")
+    pg.wait_for_selector("text=这次是谁办事？", timeout=5000)
+    pg.click("button:has-text('我方办事')")
     pg.wait_for_selector("text=记一笔")
     name_input = pg.query_selector("input[placeholder*='历史']")
     name_input.click()

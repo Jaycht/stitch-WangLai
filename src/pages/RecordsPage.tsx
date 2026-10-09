@@ -1,8 +1,8 @@
 /** 往来记录：时间轴列表 + 双向账目录入 + 重名区分 + 酒席提醒 */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, HandCoins, Bell, BellOff, Clock, CheckSquare } from 'lucide-react';
+import { Users, HandCoins, Bell, BellOff, CheckSquare } from 'lucide-react';
 import {
   GiftRecord, Person, Side, CHANNELS, EventKind,
   makeEventLookup, findSameName, resolveDisplayName,
@@ -36,6 +36,11 @@ export function RecordsPage() {
   const [q, setQ] = useState('');
   const [edit, setEdit] = useState<GiftRecord | 'new' | null>(null);
   const [delTarget, setDelTarget] = useState<GiftRecord | null>(null);
+  /* v2.14.6：新建记录的方向（谁办事）。
+     悬浮菜单选完才知道；编辑旧记录时由 RecordEditor 按记录内容反推，
+     不需要这个状态。 */
+  const [dirMenu, setDirMenu] = useState(false);
+  const [dir, setDir] = useState<Direction | null>(null);
 
   /* ---------- 长按：多选模式 ---------- */
   // 有ids = 多选模式中（空 Set 表示不在多选）
@@ -286,6 +291,7 @@ export function RecordsPage() {
                         selecting={selecting}
                         selected={sel.has(r.id)}
                         first={i === 0}
+                        care={care}
                       />
                     ))}
                   </div>
@@ -298,7 +304,7 @@ export function RecordsPage() {
 
       {!selecting && (
         <button
-          onClick={() => setEdit('new')}
+          onClick={() => setDirMenu(true)}
           aria-label="记一笔"
           className="fab fixed right-3 w-14 h-14 rounded-full bg-accent text-white
                      flex items-center justify-center shadow-lg shadow-black/20
@@ -311,6 +317,16 @@ export function RecordsPage() {
             <path d="M12 5v14" /><path d="M5 12h14" />
           </svg>
         </button>
+      )}
+
+      {/* ★ v2.14.6 悬浮方向菜单（涛哥定）：点加号先选「谁办事」，
+          再进入对应录入表单。解决「我给份子钱该记哪」的困惑，
+          同时把原来两组（收礼/回礼）堆叠的表单减半，大字模式也不挤。 */}
+      {dirMenu && (
+        <DirectionMenu
+          onPick={(d) => { setDirMenu(false); setDir(d); setEdit('new'); }}
+          onClose={() => setDirMenu(false)}
+        />
       )}
 
       {/* 批量删除二次确认 */}
@@ -333,7 +349,11 @@ export function RecordsPage() {
       {deletedCount > 0 && <DeletedToast n={deletedCount} />}
 
       {edit && (
-        <RecordEditor rec={edit === 'new' ? null : edit} onClose={() => setEdit(null)} />
+        <RecordEditor
+          rec={edit === 'new' ? null : edit}
+          dir={dir}
+          onClose={() => { setEdit(null); setDir(null); }}
+        />
       )}
       {delTarget && (
         <DeleteSheet
@@ -350,7 +370,7 @@ export function RecordsPage() {
 
 function RecordRow({
   r, name, evDef, evDefBack, onClick, onLongPress, first,
-  selecting, selected,
+  selecting, selected, care,
 }: {
   r: GiftRecord;
   name: string;
@@ -359,6 +379,8 @@ function RecordRow({
   onClick: () => void;
   onLongPress: () => void;
   first: boolean;
+  /** 大字模式：只显示姓名 + 金额（涛哥：给年纪大的人用，越简单越好） */
+  care?: boolean;
   /** 是否处于多选模式 */
   selecting: boolean;
   /** 本行是否被选中 */
@@ -386,34 +408,59 @@ function RecordRow({
         'side-bar',
         rv > 0 ? 'bg-in' : 'bg-out',
       )} />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[length:var(--f-lg)] font-medium truncate">{name || '（未命名）'}</span>
-          {evDef && <EventChip ev={evDef} />}
-          {r.remindAt && (
-            <span className="tagx bg-accent-soft text-accent shrink-0 inline-flex items-center gap-0.5">
-              <Clock size={9} strokeWidth={2.6} />
-              {r.remindAt.slice(5, 16).replace('T', ' ')}
-            </span>
-          )}
+      {/* ★ v2.14.6 大字模式（涛哥原则：给年纪大的人用，在不破坏录入与备份
+          恢复的前提下越简单越好）：**只显示姓名 + 金额**。
+          事由徽标、日期、渠道、地点、礼物、回礼详情全部隐藏 ——
+          老人扫一眼只要知道「谁、多少钱」，其余在编辑页里看得到。 */}
+      <div className="flex-1 min-w-0 pr-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-[length:var(--f-lg)] font-semibold truncate">
+            {name || '（未命名）'}
+          </span>
+          {!care && evDef && <EventChip ev={evDef} />}
         </div>
-        <div className="text-[length:var(--f-xs)] text-ink-3 mt-0.5 flex items-center gap-1.5 flex-wrap">
-          <span className="num">{fmtDate(r.received?.date || '')}</span>
+        {!care && (
+        <>
+        {/* 方向词：让人一眼知道这笔是给出还是收到 */}
+        <div className="text-[length:var(--f-xs)] text-ink-3 mt-0.5
+                        flex items-center gap-1 min-w-0 overflow-hidden">
+          <span className={cn('shrink-0 font-medium', rv > 0 ? 'text-in' : 'text-out')}>
+            {rv > 0 && tv > 0 ? '收＋回' : rv > 0 ? '我收到' : '我给出'}
+          </span>
+          <span className="num shrink-0">{fmtDate(r.received?.date || '')}</span>
           {r.received?.channel && rv > 0 && (
-            <><span>·</span><span>{chLabel(r.received.channel)}</span></>
+            <>
+              <span className="shrink-0">·</span>
+              <span className="truncate">{chLabel(r.received.channel)}</span>
+            </>
           )}
-          {r.received?.gift && (<><span>·</span><span>{r.received.gift}</span></>)}
-          {r.received?.place && (<><span>·</span><span>{r.received.place}</span></>)}
+          {r.received?.place && (
+            <>
+              <span className="shrink-0">·</span>
+              <span className="truncate">{r.received.place}</span>
+            </>
+          )}
+          {r.received?.gift && (
+            <>
+              <span className="shrink-0">·</span>
+              <span className="truncate">{r.received.gift}</span>
+            </>
+          )}
+          {/* 回礼金额：只留金额，事由/渠道移到第三行 */}
+          {tv > 0 && <span className="text-out shrink-0">· 回礼 {fmtMoney(tv, '')}</span>}
         </div>
-        {tv > 0 && evDefBack && (
-          <div className="text-[length:var(--f-xs)] text-out mt-0.5 flex items-center gap-1.5 flex-wrap">
-            <span className="text-ink-3">回礼</span>
-            <span className="num">{fmtDate(r.returned!.date)}</span>
-            <EventChip ev={evDefBack} />
+        {/* 回礼详情独立成第三行：事由 + 渠道 + 日期，不与主信息流混排 */}
+        {tv > 0 && (
+          <div className="text-[length:var(--f-xs)] text-ink-3 mt-0.5
+                          flex items-center gap-1 min-w-0 overflow-hidden">
+            <span className="shrink-0">回礼于 {fmtDate(r.returned!.date)}</span>
+            {evDefBack && <EventChip ev={evDefBack} />}
             {r.returned!.channel && (
-              <><span>·</span><span>{chLabel(r.returned!.channel)}</span></>
+              <><span>·</span><span className="truncate">{chLabel(r.returned!.channel)}</span></>
             )}
           </div>
+        )}
+        </>
         )}
       </div>
       <div className="text-right shrink-0">
@@ -437,11 +484,124 @@ function RecordRow({
 
 /* ---------- 录入/编辑 ---------- */
 
-function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () => void }) {
+/**
+ * 方向：谁办的事。
+ *
+ * v2.14.6（涛哥定）：这是本应用最核心的概念。
+ * 原来的「收礼（对方办的）/ 回礼（我方办的）」把**钱的方向**和**谁办事**
+ * 混在一起，导致「别人婚礼我给份子钱该记哪」根本想不明白。
+ * 现在把两个维度拆开：
+ *   - 谁办事 → 对方办事 / 我方办事（Direction，先选）
+ *   - 钱的方向 → 由方向直接决定，不需要用户判断
+ *     对方办事 = 我随礼付出；我方办事 = 别人随礼我收到
+ */
+export type Direction = 'their' | 'mine';
+
+const DIR_INFO: Record<Direction, { title: string; sub: string; side: 'out' | 'in' }> = {
+  their: { title: '对方办事', sub: '别人办席，我随礼付出', side: 'out' },
+  mine:  { title: '我方办事', sub: '我办席，收对方的礼', side: 'in' },
+};
+
+/**
+ * 悬浮方向菜单 —— 贴着右下角加号弹出。
+ *
+ * 为什么不做成并排 Tab（涛哥原话）：大字模式下两个 Tab 并排会挤。
+ * 就近弹出的单列菜单在 2.1 倍字号下也放得下，
+ * 选完再进录入表单，表单只剩一个方向、字段减半。
+ */
+function DirectionMenu({
+  onPick, onClose,
+}: {
+  onPick: (d: Direction) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node | null;
+      if (!t) return;
+      if (ref.current?.contains(t)) return;
+      onClose();
+    };
+    document.addEventListener('mousedown', onDown, true);
+    document.addEventListener('touchstart', onDown, true);
+    return () => {
+      document.removeEventListener('mousedown', onDown, true);
+      document.removeEventListener('touchstart', onDown, true);
+    };
+  }, [onClose]);
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div
+        ref={ref}
+        className="fixed z-50 w-[15rem] card overflow-hidden"
+        style={{
+          right: 'calc(var(--s-3) + 0.75rem)',
+          bottom: 'calc(var(--h-tab) + var(--sab) + 16px + 3.5rem + 0.5rem)',
+        }}
+        role="menu"
+      >
+        <div className="px-3 py-2 text-[length:var(--f-xs)] text-ink-3 border-b border-line">
+          这次是谁办事？
+        </div>
+        {(['their', 'mine'] as Direction[]).map((d) => {
+          const info = DIR_INFO[d];
+          return (
+            <button
+              key={d}
+              onClick={() => onPick(d)}
+              className="w-full px-3 py-2.5 flex items-center gap-2.5 text-left
+                         active:bg-accent-soft border-b border-line last:border-b-0"
+              role="menuitem"
+            >
+              <span className={cn(
+                'w-8 h-8 rounded-full flex items-center justify-center shrink-0',
+                info.side === 'out' ? 'bg-out/12 text-out' : 'bg-in/12 text-in',
+              )}>
+                {info.side === 'out'
+                  ? <HandCoins size={16} strokeWidth={1.9} />
+                  : <Users size={16} strokeWidth={1.9} />}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[length:var(--f-md)] font-medium truncate">
+                  {info.title}
+                </span>
+                <span className="block text-[length:var(--f-xs)] text-ink-3 truncate">
+                  {info.sub}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+function RecordEditor({
+  rec, dir, onClose,
+}: {
+  rec: GiftRecord | null;
+  /** 新建时由悬浮菜单选定；编辑旧记录时按内容反推 */
+  dir: Direction | null;
+  onClose: () => void;
+}) {
   const { db, dispatch, nameOf, dupCount } = useApp();
   // 关怀模式（大字）：事由默认折叠、隐藏姓名常驻快捷 chip
   const { care } = useTheme();
   const isNew = rec === null;
+
+  /* 方向的确定：
+     - 新建：来自悬浮菜单的 dir（必有）
+     - 编辑：按记录内容反推 —— 主要是「我给出」就是我给对方随礼，
+       只有收礼没有回礼的按「我收到」处理（v2.14.0 之前的老数据归类规则，
+       涛哥拍板：付出→对方办事、收到→我方办事）。 */
+  const effDir: Direction = isNew
+    ? (dir ?? 'their')
+    : ((rec?.returned?.amount ?? 0) > 0 ? 'their' : 'mine');
+  const isOut = DIR_INFO[effDir].side === 'out';
 
   const [personId, setPersonId] = useState(rec?.personId ?? '');
   const [personName, setPersonName] = useState(rec ? nameOf(rec.personId) : '');
@@ -462,7 +622,10 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
 
   const hasOut = (returned?.amount ?? 0) > 0;
   const hasIn = (received?.amount ?? 0) > 0;
-  const canSave = personName.trim().length > 0 && (hasIn || hasOut);
+  /* v2.14.6：方向决定金额落在哪一侧，canSave 只看「填了人和金额」，
+     不再要求同时有收/回两组。 */
+  const canSave = personName.trim().length > 0
+    && (Math.abs(received.amount || 0) > 0 || hasOut);
 
   // 同名检测：只在「已填了名字」且不是选中了已有档案时提示
   const trimmed = personName.trim();
@@ -549,10 +712,16 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
       }
     }
 
+    /* ★ v2.14.6 按方向写入：
+       - 对方办事（我随礼付出）→ 金额落在 returned（我给出去的钱）
+       - 我方办事（我办席收礼）→ 金额落在 received（我收到的钱）
+       这正是涛哥拍板的老数据归类规则，两边语义完全一致，
+       所以历史记录零迁移、统计/净值口径不变。 */
+    const main = { ...received, amount: Math.abs(received.amount || 0) };
     const payload = {
       personId: pid,
-      received,
-      returned: hasOut ? returned! : undefined,
+      received: isOut ? blankSide({ date: received.date }) : main,
+      returned: isOut ? main : (hasOut ? returned! : undefined),
       remark: remark.trim() || undefined,
       remindAt: remindAt || undefined,
       reminded: false,
@@ -580,7 +749,7 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
     <Sheet
       open
       onClose={onClose}
-      title={isNew ? '记一笔' : '编辑记录'}
+      title={isNew ? `记一笔 · ${DIR_INFO[effDir].title}` : '编辑记录'}
       footer={
         <>
           {!isNew && (
@@ -692,41 +861,72 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
 
         <div className="h-px bg-line" />
 
-        {/* ========== 第 2 组：礼金与日期 ==========
-            金额是必填项，日期跟它同属「这笔什么时候记的」，
-            放一起最顺。 */}
-        <FieldGroup title="礼金与日期">
-          <SideEditor
-            title="收礼（对方办的）"
-            side={received}
-            onChange={setR}
-            tone="in"
-            compact
-          />
-          {/* v2.14.0：日期 + 时间并排。
-              涛哥要求「记录婚礼酒席的时间」——日期不够用。
-              时间是可选的，只登记日期的场景不受影响。 */}
-          <div>
-            <label className="label">日期与时刻</label>
-            <div className="flex gap-2">
-              <input
-                className="field flex-1 min-w-0"
-                type="date"
-                value={received.date}
-                onChange={(e) => setR({ date: e.target.value })}
+        {/* ========== 第 2 组：礼金 ==========
+            ★ v2.14.6 大字模式极简（涛哥定原则：「给年纪大的人用，
+            在不破坏录入和备份恢复的前提下，越简单越好」）：
+            只留「金额」一个必填项 + 一个备注框。
+            渠道/地点/礼物/时刻全部并入备注，用户想写就写，不写也不影响记账。 */}
+        <FieldGroup title={care ? '金额' : '礼金与日期'}>
+          {care ? (
+            <>
+              <div>
+                <label className="label">金额</label>
+                <input
+                  className="field"
+                  type="number"
+                  inputMode="decimal"
+                  value={received.amount || ''}
+                  onChange={(e) => setR({ amount: Number(e.target.value) || 0 })}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="mt-2.5">
+                <label className="label">备注（可留空）</label>
+                <input
+                  className="field"
+                  value={remark}
+                  onChange={(e) => setRemark(e.target.value)}
+                  placeholder="如：女方家·沂源 现金"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <SideEditor
+                title={isOut ? '我随礼付出（礼金）' : '我收到的礼金'}
+                side={received}
+                onChange={setR}
+                tone={isOut ? 'out' : 'in'}
+                compact
               />
-              <input
-                className="field flex-1 min-w-0"
-                type="time"
-                value={received.time ?? ''}
-                onChange={(e) => setR({ time: e.target.value || undefined })}
-              />
-            </div>
-          </div>
+              {/* v2.14.0：日期 + 时间并排。
+                  涛哥要求「记录婚礼酒席的时间」——日期不够用。
+                  时间是可选的，只登记日期的场景不受影响。 */}
+              <div>
+                <label className="label">日期与时刻</label>
+                <div className="flex gap-2">
+                  <input
+                    className="field flex-1 min-w-0"
+                    type="date"
+                    value={received.date}
+                    onChange={(e) => setR({ date: e.target.value })}
+                  />
+                  <input
+                    className="field flex-1 min-w-0"
+                    type="time"
+                    value={received.time ?? ''}
+                    onChange={(e) => setR({ time: e.target.value || undefined })}
+                  />
+                </div>
+              </div>
+            </>
+          )}
         </FieldGroup>
 
-        {/* ========== 第 3 组：事由与地点 ==========
-            这两个是「这笔钱是干嘛的」的补充说明。 */}
+        {/* ========== 第 3 组：事由 ==========
+            ★ 大字模式：事由整个组隐藏 —— 老人不需要分场合，
+            金额记清楚就够，场合写不写进备注都行。 */}
+        {!care && (
         <FieldGroup title="事由与地点">
           <div>
             <label className="label">事由</label>
@@ -757,45 +957,29 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
             </div>
           </div>
         </FieldGroup>
+        )}
 
-        {/* ========== 第 4 组：回礼（可选，单独成组）============
-            单独拆出来的理由：回礼**大多数时候为空**，
-            混在其它组里会让那一片空旷；
-            而且「收」和「回」本来就是两个方向的动作。 */}
-        <FieldGroup
-          title="回礼（我方办的）"
-          hint={returned ? undefined : '可选'}
-        >
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            {!returned && (
-              <button
-                onClick={() => setReturned(blankSide({ date: received.date }))}
-                className="btn-ghost btn-sm"
-              >
-                <HandCoins size={13} strokeWidth={1.9} />加回礼
-              </button>
-            )}
+        {/* v2.14.6：原来这里是「回礼（我方办的）」整组表单。
+            方向模型下，回礼 = **另一条记录**（我方办事），
+            所以不再在本表单里重复一组方向，只在有回礼时显示说明，
+            并引导用户另记一条。老数据的回礼仍完整保留、照常显示。
+            ★ 大字模式：整块隐藏（原则：越简单越好）。 */}
+        {!care && !hasOut && (
+          <div className="flex items-start gap-1.5 px-2.5 py-2 rounded-lg bg-paper">
+            <HandCoins size={12} strokeWidth={2} className="mt-0.5 shrink-0 text-ink-3" />
+            <p className="text-[length:var(--f-xs)] text-ink-3 leading-relaxed">
+              {isOut
+                ? '这份人情你给了多少？如果对方后来回礼了，回礼要**另记一条**（再点一次加号，选「我方办事」）。'
+                : '收到了多少？如果这份人情你之后要回礼，回礼要**另记一条**（再点一次加号，选「对方办事」）。'}
+            </p>
           </div>
-          {returned ? (
-            <SideEditor
-              title=""
-              side={returned}
-              onChange={setT}
-              tone="out"
-              onRemove={() => setReturned(null)}
-            />
-          ) : (
-            <div className="text-[length:var(--f-sm)] text-ink-3 leading-relaxed bg-paper rounded-lg px-2.5 py-2">
-              对方随了礼你回过钱？点「加回礼」记上。回礼记录了，人情净值才算得准。
-            </div>
-          )}
-        </div>
-        </FieldGroup>
+        )}
 
         {/* ========== 第 5 组：备注 ==========
             v2.14.0：原「酒席提醒」整块已移除（不再提供提醒服务）。
-            保留这里只放备注 —— 它是记完之后的补充信息。 */}
+            ★ 大字模式：整组隐藏 —— 备注已在「金额」组里给了一个输入框，
+            不需要再来一块（原则：越简单越好）。 */}
+        {!care && (
         <FieldGroup title="备注">
 
         {/* 提示：本应用只做登记，不发通知。
@@ -821,6 +1005,7 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
           />
         </div>
         </FieldGroup>
+        )}
       </div>
 
       {/* 选已有同名档案 */}

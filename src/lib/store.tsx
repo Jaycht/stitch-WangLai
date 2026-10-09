@@ -274,10 +274,18 @@ export const fmtMonth = (s: string) => {
   return `${y}年${Number(m)}月`;
 };
 
+const nowTime = () => {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
 export const blankSide = (over: Partial<Side> = {}): Side => ({
   channel: 'cash' as PayChannel,
   amount: 0,
   date: todayStr(),
+  // v2.14.2：新记录默认带当前时刻，方便记酒席开席时间（涛哥要求）
+  time: nowTime(),
   event: 'wedding' as EventKind,
   ...over,
 });

@@ -53,7 +53,7 @@ const TodosPage = lazy(() =>
 function PageLoading() {
   return (
     <div className="flex items-center justify-center py-24 text-ink-3">
-      <span className="text-[var(--f-md)]">加载中…</span>
+      <span className="text-[length:var(--f-md)]">加载中…</span>
     </div>
   );
 }
@@ -195,7 +195,7 @@ function Shell() {
       {exitAsk && (
         <div
           className="fixed left-1/2 -translate-x-1/2 bottom-[calc(var(--h-tab)+var(--sab)+28px)]
-                     z-50 bg-ink/92 text-white text-[var(--f-md)]
+                     z-50 bg-ink/92 text-white text-[length:var(--f-md)]
                      px-4 py-2.5 rounded-[var(--r-ctl)] shadow-lg
                      max-w-[80%] text-center"
           role="status"

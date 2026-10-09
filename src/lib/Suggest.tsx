@@ -218,7 +218,7 @@ export function SuggestBox({
          柔光玻璃主题下 --card-alpha = 0.55 → **半透明**，
          下方的「关系 / 电话 / 微信」字段直接透出来（涛哥截图确认）。
          浮层必须用不透明底色，否则内容重影、无法辨认。 */
-      className="fixed left-3 right-3 z-50 overflow-y-auto shadow-lg shadow-black/20
+      className="fixed left-2 right-2 z-50 overflow-y-auto shadow-lg shadow-black/20
                  border border-line rounded-[var(--r-card)]"
       style={{
         top: Math.max(4, finalTop),
@@ -243,19 +243,19 @@ export function SuggestBox({
             onPick(s);
           }}
           className={cn(
-            'w-full flex items-center gap-2 px-3 py-2 text-left active:bg-accent-soft',
+            'w-full flex items-center gap-2 px-3 py-2.5 text-left active:bg-accent-soft',
             // 键盘导航的高亮（模拟器/外接键盘场景）
             i === activeIndex && 'bg-accent-soft',
             i > 0 && 'border-t border-line',
           )}
         >
-          <div className="flex-1 min-w-0">
-            <div className="text-[var(--f-md)] truncate">{s.value}</div>
-            {s.sub && (
-              <div className="text-[var(--f-xs)] text-ink-3 truncate mt-0.5">
-                {s.sub}
-              </div>
-            )}
+            <div className="flex-1 min-w-0">
+              <div className="text-[length:var(--f-lg)] truncate">{s.value}</div>
+              {s.sub && (
+                <div className="text-[length:var(--f-sm)] text-ink-3 truncate mt-0.5">
+                  {s.sub}
+                </div>
+              )}
           </div>
           {i === activeIndex && (
             <Check size={14} strokeWidth={2.4} className="text-accent shrink-0" />

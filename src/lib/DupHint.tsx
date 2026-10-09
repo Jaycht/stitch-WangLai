@@ -43,7 +43,7 @@ export function DupHint({
       <div className="flex items-start gap-1.5">
         <AlertTriangle size={14} strokeWidth={2} className="text-accent mt-0.5 shrink-0" />
         <div className="flex-1 min-w-0">
-          <div className="text-[var(--f-sm)] text-ink-2 leading-snug">
+          <div className="text-[length:var(--f-sm)] text-ink-2 leading-snug">
             本机已有 <b className="text-accent">{info.candidates.length}</b> 位「{info.name}」。
             要不要选其中一位，或给这位起个区分名？
           </div>
@@ -87,14 +87,14 @@ export function DupPicker({
               className="row w-full text-left active:bg-paper"
             >
               <div className="w-8 h-[var(--h-ctl)] rounded-full bg-accent-soft text-accent shrink-0
-                              flex items-center justify-center text-[var(--f-md)] font-medium">
+                              flex items-center justify-center text-[length:var(--f-md)] font-medium">
                 {p.name.slice(0, 1)}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-[var(--f-md)] truncate">
+                <div className="text-[length:var(--f-md)] truncate">
                   {p.alias?.trim() || p.name}
                 </div>
-                <div className="text-[var(--f-xs)] text-ink-3 mt-0.5 truncate">
+                <div className="text-[length:var(--f-xs)] text-ink-3 mt-0.5 truncate">
                   {[p.relation, p.region, p.phone].filter(Boolean).join(' · ') || '暂无档案信息'}
                 </div>
               </div>
@@ -157,7 +157,7 @@ export function AliasEditor({
             placeholder="如：建国·南麻 / 张三(二哥)"
             autoComplete="off"
           />
-          <p className="text-[var(--f-xs)] text-ink-3 mt-1 leading-relaxed">
+          <p className="text-[length:var(--f-xs)] text-ink-3 mt-1 leading-relaxed">
             填了就直接用这个名字显示，最不容易搞混。
           </p>
         </div>
@@ -186,15 +186,15 @@ export function AliasEditor({
             />
           </div>
         </div>
-        <p className="text-[var(--f-xs)] text-ink-3 leading-relaxed -mt-1.5">
+        <p className="text-[length:var(--f-xs)] text-ink-3 leading-relaxed -mt-1.5">
           不填区分名时，会自动拼成「{personName}（关系·地区）」；两个都不填就显示序号。
         </p>
 
         {others.length > 1 && (
           <div className="card p-2.5">
-            <div className="text-[var(--f-xs)] text-ink-3 mb-1.5">本机同名的几位</div>
+            <div className="text-[length:var(--f-xs)] text-ink-3 mb-1.5">本机同名的几位</div>
             {others.map((p) => (
-              <div key={p.id} className="text-[var(--f-sm)] text-ink-2 py-0.5 flex items-center gap-1.5">
+              <div key={p.id} className="text-[length:var(--f-sm)] text-ink-2 py-0.5 flex items-center gap-1.5">
                 <span className="truncate">
                   {p.alias?.trim() || resolveDisplayName(p, others.length, others.indexOf(p))}
                 </span>

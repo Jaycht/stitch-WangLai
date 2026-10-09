@@ -190,7 +190,7 @@ export function TodosPage() {
                 action={
                   <button
                     onClick={() => setClearDone(true)}
-                    className="text-[var(--f-xs)] text-ink-3"
+                    className="text-[length:var(--f-xs)] text-ink-3"
                   >
                     清除
                   </button>
@@ -220,7 +220,7 @@ export function TodosPage() {
 
         {/* 分类提示 */}
         <div className="card p-3">
-          <div className="text-[var(--f-sm)] font-medium mb-1.5 flex items-center gap-1.5">
+          <div className="text-[length:var(--f-sm)] font-medium mb-1.5 flex items-center gap-1.5">
             <ListChecks size={14} strokeWidth={2} className="text-ink-3" />可以记这些
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -355,7 +355,7 @@ function TodoRow({
         className="flex-1 min-w-0 text-left"
       >
         <div className={cn(
-          'text-[var(--f-md)] leading-snug',
+          'text-[length:var(--f-md)] leading-snug',
           t.done && 'line-through text-ink-3',
         )}>
           {t.title}
@@ -363,13 +363,13 @@ function TodoRow({
         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
           {t.due && !t.done && <DueText due={t.due} />}
           {t.due && t.done && (
-            <span className="text-[var(--f-xs)] text-ink-3 num">{t.due.slice(5)}</span>
+            <span className="text-[length:var(--f-xs)] text-ink-3 num">{t.due.slice(5)}</span>
           )}
           {personName && (
             <span className="tagx bg-line/60 text-ink-2">{personName}</span>
           )}
           {t.note && (
-            <span className="text-[var(--f-xs)] text-ink-3 truncate max-w-[180px]">{t.note}</span>
+            <span className="text-[length:var(--f-xs)] text-ink-3 truncate max-w-[180px]">{t.note}</span>
           )}
         </div>
       </button>
@@ -377,11 +377,11 @@ function TodoRow({
         <div className="flex gap-1 shrink-0">
           <button
             onClick={() => { onRemove(); setConfirming(false); }}
-            className="text-[var(--f-xs)] text-[#C62828] px-1.5 py-1 rounded"
+            className="text-[length:var(--f-xs)] text-[#C62828] px-1.5 py-1 rounded"
           >确认删</button>
           <button
             onClick={() => setConfirming(false)}
-            className="text-[var(--f-xs)] text-ink-3 px-1.5 py-1 rounded"
+            className="text-[length:var(--f-xs)] text-ink-3 px-1.5 py-1 rounded"
           >算了</button>
         </div>
       ) : (
@@ -510,7 +510,7 @@ function TodoEditor({ todo, onClose }: { todo: Todo | null; onClose: () => void 
           )}
 
           {/* 提示：一句话讲清「只登记不提醒」，避免用户以为是漏了功能 */}
-          <p className="text-[var(--f-xs)] text-ink-3 leading-relaxed mt-2 flex items-start gap-1">
+          <p className="text-[length:var(--f-xs)] text-ink-3 leading-relaxed mt-2 flex items-start gap-1">
             <BellOff size={12} strokeWidth={2} className="mt-0.5 shrink-0" />
             <span>本应用只做登记，不发送提醒。到点要做的事，请用手机自带「时钟」设个闹钟。</span>
           </p>

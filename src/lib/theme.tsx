@@ -223,7 +223,7 @@ export function ThemePicker() {
             <Thumb k={it.k} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-[var(--f-md)] font-medium">{it.name}</span>
+                <span className="text-[length:var(--f-md)] font-medium">{it.name}</span>
                 {suggested && !manual && (
                   <span
                     className="tagx"
@@ -234,7 +234,7 @@ export function ThemePicker() {
                   >推荐</span>
                 )}
               </div>
-              <div className="text-[var(--f-xs)] text-ink-3 mt-0.5">{it.desc}</div>
+              <div className="text-[length:var(--f-xs)] text-ink-3 mt-0.5">{it.desc}</div>
             </div>
             {on && (
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
@@ -248,7 +248,7 @@ export function ThemePicker() {
       })}
 
       {report && (
-        <p className="text-[var(--f-xs)] text-ink-3 leading-relaxed pt-0.5">
+        <p className="text-[length:var(--f-xs)] text-ink-3 leading-relaxed pt-0.5">
           检测：{report.cores > 0 ? `${report.cores} 核` : '核数未知'}
           {report.mem > 0 ? ` · ${report.mem}GB` : ''}
           {report.fps > 0 ? ` · ${report.fps}fps` : ''}
@@ -256,7 +256,7 @@ export function ThemePicker() {
         </p>
       )}
       {report?.tier === 'low' && (
-        <p className="text-[var(--f-xs)] text-ink-3 leading-relaxed">
+        <p className="text-[length:var(--f-xs)] text-ink-3 leading-relaxed">
           本机偏低，已自动关闭毛玻璃，选 B/C 也不会卡。
         </p>
       )}

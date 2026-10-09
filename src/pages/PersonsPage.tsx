@@ -17,6 +17,7 @@ import { useSuggest, SuggestBox } from '../lib/Suggest';
 import { useLongPress } from '../lib/useLongPress';
 import { SelectBar, CheckMark } from '../lib/ActionSheet';
 import { cn } from '../lib/utils';
+import { useTheme } from '../lib/theme';
 import { pushBack } from '../lib/backStack';
 import { LongPressTip, useTipOnce } from '../lib/LongPressTip';
 
@@ -31,6 +32,7 @@ export function PersonsPage() {
   const [aliasFor, setAliasFor] = useState<Person | null>(null);
 
   const lookup = useMemo(() => makeEventLookup(db.customEvents), [db.customEvents]);
+  const { care } = useTheme();
 
   /** 重名显示名：别名 > 关系·地区 > 序号 */
   const dn = useMemo(() => {
@@ -137,7 +139,7 @@ export function PersonsPage() {
         sub={`${db.persons.length} 人 · 有往来 ${withDebt.length} 人`}
         right={
           /* 全选入口：解决「用户不知道能批量操作」的可发现性 */
-          list.length > 0 && !selecting ? (
+          list.length > 0 && !selecting && !care ? (
             <button
               onClick={selectAll}
               className="btn-ghost btn-sm shrink-0 flex items-center gap-1"
@@ -155,11 +157,11 @@ export function PersonsPage() {
           <LongPressTip show={tip.show} role="人员" onClose={tip.dismiss} />
         )}
 
-        {totalNet !== 0 && (
+        {!care && totalNet !== 0 && (
           <div className="card px-3.5 py-2.5 flex items-center justify-between">
-            <span className="text-[var(--f-sm)] text-ink-3">整体人情净值</span>
+            <span className="text-[length:var(--f-sm)] text-ink-3">整体人情净值</span>
             <span className={cn(
-              'text-[var(--f-lg)] font-semibold num',
+              'text-[length:var(--f-lg)] font-semibold num',
               totalNet > 0 ? 'text-in' : 'text-out',
             )}>
               {totalNet > 0 ? '尚欠 ' : '多随了 '}
@@ -188,7 +190,7 @@ export function PersonsPage() {
           />
         )}
 
-        {!selecting && (
+        {!selecting && !care && (
           <SearchBox value={q} onChange={setQ} placeholder="搜索姓名" />
         )}
 
@@ -215,14 +217,14 @@ export function PersonsPage() {
                 >
                   <div
                     className="w-8 h-[var(--h-ctl)] rounded-full bg-accent-soft text-accent
-                                flex items-center justify-center text-[var(--f-md)]
+                                flex items-center justify-center text-[length:var(--f-md)]
                                 font-medium shrink-0"
                   >
                     {s.person.name.slice(0, 1)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[var(--f-lg)] font-medium truncate">
+                      <span className="text-[length:var(--f-lg)] font-medium truncate">
                         {dn.get(s.person.id) ?? s.person.name}
                       </span>
                       {s.person.relation && (
@@ -237,7 +239,7 @@ export function PersonsPage() {
                         >同名 {same.length}</span>
                       )}
                     </div>
-                    <div className="text-[var(--f-xs)] text-ink-3 mt-0.5 num">
+                    <div className="text-[length:var(--f-xs)] text-ink-3 mt-0.5 num">
                       {s.count > 0
                         ? `${s.count} 次 · 收 ${fmtMoney(s.received, '')} · 回 ${fmtMoney(s.returned, '')}`
                         : '暂无往来记录'}
@@ -247,13 +249,13 @@ export function PersonsPage() {
                     {s.count > 0 ? (
                       <>
                         <div className={cn(
-                          'text-[var(--f-lg)] font-semibold num',
+                          'text-[length:var(--f-lg)] font-semibold num',
                           s.net > 0 ? 'text-in' : s.net < 0 ? 'text-out' : 'text-ink-3',
                         )}>
                           {s.net > 0 ? '+' : s.net < 0 ? '−' : ''}
                           {fmtMoney(Math.abs(s.net), '')}
                         </div>
-                        <div className="text-[var(--f-xs)] text-ink-3">
+                        <div className="text-[length:var(--f-xs)] text-ink-3">
                           {s.net > 0 ? '人家多给' : s.net < 0 ? '我多随' : '两清'}
                         </div>
                       </>
@@ -478,11 +480,11 @@ function PersonEditor({
             className="rounded-[var(--r-ctl)] border border-accent-line
                        bg-accent-soft/50 px-2.5 py-2"
           >
-            <div className="text-[var(--f-sm)] text-ink-2 leading-snug">
+            <div className="text-[length:var(--f-sm)] text-ink-2 leading-snug">
               本机已有 <b className="text-accent">{dups.length}</b> 位「{name.trim()}」。
               同名时列表会显示成：
             </div>
-            <div className="text-[var(--f-md)] font-medium mt-1 text-accent num">
+            <div className="text-[length:var(--f-md)] font-medium mt-1 text-accent num">
               {resolveDisplayName(
                 {
                   id: person?.id ?? '', name: name.trim(), alias,
@@ -492,7 +494,7 @@ function PersonEditor({
                 dups.length + 1, dups.length,
               )}
             </div>
-            <p className="text-[var(--f-xs)] text-ink-3 mt-1">
+            <p className="text-[length:var(--f-xs)] text-ink-3 mt-1">
               填「区分名」最直观，或补上关系/地区自动拼后缀。
             </p>
           </div>
@@ -611,23 +613,23 @@ function PersonDetail({
         <div className="card px-3.5 py-3">
           <div className="flex items-end gap-1.5">
             <div className="flex-1 min-w-0">
-              <div className="text-[var(--f-xs)] text-ink-3">收礼</div>
-              <div className="text-[var(--f-num)] font-semibold num text-in">
+              <div className="text-[length:var(--f-xs)] text-ink-3">收礼</div>
+              <div className="text-[length:var(--f-num)] font-semibold num text-in">
                 {fmtMoney(stat.received, db.settings.currency)}
               </div>
             </div>
             <div className="w-px h-7 bg-line shrink-0" />
             <div className="flex-1 min-w-0">
-              <div className="text-[var(--f-xs)] text-ink-3">回礼</div>
-              <div className="text-[var(--f-num)] font-semibold num text-out">
+              <div className="text-[length:var(--f-xs)] text-ink-3">回礼</div>
+              <div className="text-[length:var(--f-num)] font-semibold num text-out">
                 {fmtMoney(stat.returned, db.settings.currency)}
               </div>
             </div>
             <div className="w-px h-7 bg-line shrink-0" />
             <div className="flex-1 min-w-0">
-              <div className="text-[var(--f-xs)] text-ink-3">净值</div>
+              <div className="text-[length:var(--f-xs)] text-ink-3">净值</div>
               <div className={cn(
-                'text-[var(--f-num)] font-semibold num',
+                'text-[length:var(--f-num)] font-semibold num',
                 stat.net > 0 ? 'text-in' : stat.net < 0 ? 'text-out' : 'text-ink-3',
               )}>
                 {fmtMoney(stat.net, db.settings.currency)}
@@ -662,9 +664,9 @@ function PersonDetail({
           {(person.alias?.trim() || sameName.length > 0) && (
             <div className="row">
               <Tag size={13} strokeWidth={1.8} className="text-ink-3 shrink-0" />
-              <span className="text-[var(--f-md)] shrink-0">区分名</span>
+              <span className="text-[length:var(--f-md)] shrink-0">区分名</span>
               <span className="flex-1" />
-              <span className="text-[var(--f-md)] text-accent truncate ml-2">
+              <span className="text-[length:var(--f-md)] text-accent truncate ml-2">
                 {person.alias?.trim() || '未设'}
               </span>
             </div>
@@ -702,10 +704,10 @@ function PersonDetail({
                 return (
                   <div key={p.id} className={cn('row', i > 0 && 'border-t border-line')}>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[var(--f-md)] truncate">
+                      <div className="text-[length:var(--f-md)] truncate">
                         {[p.alias, p.relation, p.region].filter(Boolean).join(' · ') || '未填区分信息'}
                       </div>
-                      <div className="text-[var(--f-xs)] text-ink-3 num mt-0.5">
+                      <div className="text-[length:var(--f-xs)] text-ink-3 num mt-0.5">
                         {st && st.count > 0
                           ? `${st.count} 次 · 净 ${fmtMoney(st.net, '')}`
                           : '暂无往来'}
@@ -725,7 +727,7 @@ function PersonDetail({
         <Section title={`往来明细（${recs.length}）`}>
           {recs.length === 0 ? (
             <div className="card px-3 py-4 text-center">
-              <span className="text-[var(--f-sm)] text-ink-3">还没有往来记录</span>
+              <span className="text-[length:var(--f-sm)] text-ink-3">还没有往来记录</span>
             </div>
           ) : (
             <div className="card overflow-hidden">
@@ -735,17 +737,17 @@ function PersonDetail({
                 return (
                   <div key={r.id} className={cn('px-3 py-2.5', i > 0 && 'border-t border-line')}>
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[var(--f-md)] num">
+                      <span className="text-[length:var(--f-md)] num">
                         {fmtDate(r.received?.date || '')}
                       </span>
                       {ev && <EventChip ev={ev} />}
                     </div>
-                    <div className="text-[var(--f-xs)] text-ink-3 mt-1 flex items-center gap-1.5 flex-wrap">
+                    <div className="text-[length:var(--f-xs)] text-ink-3 mt-1 flex items-center gap-1.5 flex-wrap">
                       <span>收 {fmtMoney(r.received?.amount ?? 0, '')}</span>
                       {r.received?.gift && (<><span>·</span><span>{r.received.gift}</span></>)}
                     </div>
                     {r.returned && (
-                      <div className="text-[var(--f-xs)] text-out mt-0.5 flex items-center gap-1.5 flex-wrap">
+                      <div className="text-[length:var(--f-xs)] text-out mt-0.5 flex items-center gap-1.5 flex-wrap">
                         <span className="text-ink-3">回礼</span>
                         <span className="num">{fmtDate(r.returned.date)}</span>
                         {evBack && <EventChip ev={evBack} />}
@@ -755,7 +757,7 @@ function PersonDetail({
                       </div>
                     )}
                     {r.remark && (
-                      <div className="text-[var(--f-xs)] text-ink-3 mt-0.5">{r.remark}</div>
+                      <div className="text-[length:var(--f-xs)] text-ink-3 mt-0.5">{r.remark}</div>
                     )}
                   </div>
                 );
@@ -777,10 +779,10 @@ function Row({
     <div className="row">
       {icon
         ? <span className="text-ink-3 shrink-0">{icon}</span>
-        : <span className="text-[var(--f-md)] text-ink-3 shrink-0 w-[15px]">{label.slice(0, 1)}</span>}
-      <span className="text-[var(--f-md)] shrink-0">{label}</span>
+        : <span className="text-[length:var(--f-md)] text-ink-3 shrink-0 w-[15px]">{label.slice(0, 1)}</span>}
+      <span className="text-[length:var(--f-md)] shrink-0">{label}</span>
       <span className="flex-1" />
-      <span className="text-[var(--f-md)] text-ink-2 truncate ml-3">
+      <span className="text-[length:var(--f-md)] text-ink-2 truncate ml-3">
         {value || <span className="text-ink-3">未填</span>}
       </span>
     </div>

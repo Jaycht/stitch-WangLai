@@ -46,8 +46,8 @@ export function AlmanacPage() {
             <ChevronLeft size={18} strokeWidth={1.9} />
           </button>
           <div className="text-center">
-            <div className="text-[var(--f-lg)] font-semibold num">{ym.y} 年 {ym.m} 月</div>
-            <div className="text-[var(--f-xs)] text-ink-3">
+            <div className="text-[length:var(--f-lg)] font-semibold num">{ym.y} 年 {ym.m} 月</div>
+            <div className="text-[length:var(--f-xs)] text-ink-3">
               {info ? `${info.yearGZ}年 ${info.animal}年` : ''}
             </div>
           </div>
@@ -61,7 +61,7 @@ export function AlmanacPage() {
         <div className="card p-2">
           <div className="grid grid-cols-7 mb-1">
             {WEEK_LABELS.map((w) => (
-              <div key={w} className="text-center text-[var(--f-xs)] text-ink-3">{w}</div>
+              <div key={w} className="text-center text-[length:var(--f-xs)] text-ink-3">{w}</div>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-y-0.5">
@@ -76,8 +76,8 @@ export function AlmanacPage() {
                   c.isToday && sel !== c.date && 'ring-1 ring-accent',
                 )}
               >
-                <span className="text-[var(--f-md)] num leading-none">{c.day}</span>
-                <span className="text-[var(--f-xs)] mt-0.5 leading-none opacity-70 truncate max-w-full px-0.5">
+                <span className="text-[length:var(--f-md)] num leading-none">{c.day}</span>
+                <span className="text-[length:var(--f-xs)] mt-0.5 leading-none opacity-70 truncate max-w-full px-0.5">
                   {c.lunarText}
                 </span>
               </button>
@@ -86,23 +86,23 @@ export function AlmanacPage() {
         </div>
 
         {!info ? (
-          <div className="card p-4 text-center text-[var(--f-md)] text-ink-3">该日期超出可计算范围</div>
+          <div className="card p-4 text-center text-[length:var(--f-md)] text-ink-3">该日期超出可计算范围</div>
         ) : (
           <>
             {/* 日期头 */}
             <div className="card px-3.5 py-3">
               <div className="flex items-baseline gap-2">
-                <span className="text-[var(--f-num)] font-semibold num leading-none">
+                <span className="text-[length:var(--f-num)] font-semibold num leading-none">
                   {Number(sel.slice(8, 10))}日
                 </span>
-                <span className="text-[var(--f-md)] text-ink-2">
+                <span className="text-[length:var(--f-md)] text-ink-2">
                   {sel.slice(0, 4)}年{Number(sel.slice(5, 7))}月
                 </span>
-                <span className="text-[var(--f-sm)] text-ink-3 ml-auto">
+                <span className="text-[length:var(--f-sm)] text-ink-3 ml-auto">
                   {info.lunarMD}
                 </span>
               </div>
-              <div className="text-[var(--f-sm)] text-ink-3 mt-1.5 flex flex-wrap gap-x-2.5 gap-y-0.5">
+              <div className="text-[length:var(--f-sm)] text-ink-3 mt-1.5 flex flex-wrap gap-x-2.5 gap-y-0.5">
                 <span className="num">{info.yearGZ}年 {info.monthGZ}月 {info.dayGZ}日</span>
                 <span>{info.animal}年</span>
                 {info.festivals.length > 0 && (
@@ -115,21 +115,21 @@ export function AlmanacPage() {
             <div className="grid grid-cols-2 gap-2 care-grid-2">
               <div className="card p-2.5">
                 <div className="flex items-center gap-1.5 mb-1.5">
-                  <span className="w-5 h-5 rounded bg-in text-white text-[var(--f-sm)]
+                  <span className="w-5 h-5 rounded bg-in text-white text-[length:var(--f-sm)]
                                    flex items-center justify-center">宜</span>
-                  <span className="text-[var(--f-xs)] text-ink-3">{info.yi.length} 项</span>
+                  <span className="text-[length:var(--f-xs)] text-ink-3">{info.yi.length} 项</span>
                 </div>
-                <div className="text-[var(--f-sm)] leading-relaxed text-ink-2 break-all">
+                <div className="text-[length:var(--f-sm)] leading-relaxed text-ink-2 break-all">
                   {info.yi.join(' ')}
                 </div>
               </div>
               <div className="card p-2.5">
                 <div className="flex items-center gap-1.5 mb-1.5">
-                  <span className="w-5 h-5 rounded bg-ink-3 text-white text-[var(--f-sm)]
+                  <span className="w-5 h-5 rounded bg-ink-3 text-white text-[length:var(--f-sm)]
                                    flex items-center justify-center">忌</span>
-                  <span className="text-[var(--f-xs)] text-ink-3">{info.ji.length} 项</span>
+                  <span className="text-[length:var(--f-xs)] text-ink-3">{info.ji.length} 项</span>
                 </div>
-                <div className="text-[var(--f-sm)] leading-relaxed text-ink-2 break-all">
+                <div className="text-[length:var(--f-sm)] leading-relaxed text-ink-2 break-all">
                   {info.ji.join(' ')}
                 </div>
               </div>
@@ -162,7 +162,7 @@ export function AlmanacPage() {
             <Section title="二十八星宿">
               <div className="card p-3">
                 <div className="flex items-center gap-2 mb-1.5">
-                  <span className="text-[var(--f-lg)] font-semibold">{info.xiu}</span>
+                  <span className="text-[length:var(--f-lg)] font-semibold">{info.xiu}</span>
                   <span className={cn('tagx',
                     info.xiuLuck === '吉' ? 'bg-in/10 text-in' : 'bg-ink-3/10 text-ink-2')}>
                     {info.xiuLuck}
@@ -171,19 +171,19 @@ export function AlmanacPage() {
                     <span className="tagx bg-line/60 text-ink-2">九星 {info.nineStar}</span>
                   )}
                 </div>
-                <div className="text-[var(--f-sm)] text-ink-2 leading-relaxed">{info.xiuSong}</div>
+                <div className="text-[length:var(--f-sm)] text-ink-2 leading-relaxed">{info.xiuSong}</div>
               </div>
             </Section>
 
             {/* 彭祖百忌 + 建除 */}
             <div className="grid grid-cols-2 gap-2 care-grid-2">
               <div className="card p-2.5">
-                <div className="text-[var(--f-xs)] text-ink-3 mb-1">彭祖百忌</div>
-                <div className="text-[var(--f-sm)] text-ink-2 leading-relaxed">{info.pengZu}</div>
+                <div className="text-[length:var(--f-xs)] text-ink-3 mb-1">彭祖百忌</div>
+                <div className="text-[length:var(--f-sm)] text-ink-2 leading-relaxed">{info.pengZu}</div>
               </div>
               <div className="card p-2.5">
-                <div className="text-[var(--f-xs)] text-ink-3 mb-1">建除十二神</div>
-                <div className="text-[var(--f-sm)] text-ink-2 leading-relaxed">
+                <div className="text-[length:var(--f-xs)] text-ink-3 mb-1">建除十二神</div>
+                <div className="text-[length:var(--f-sm)] text-ink-2 leading-relaxed">
                   {info.zhiXing}
                   <div className="text-ink-3 mt-0.5">{info.jiShen}</div>
                 </div>
@@ -193,12 +193,12 @@ export function AlmanacPage() {
             {/* 吉神宜趋 / 凶神宜忌 */}
             <div className="grid grid-cols-2 gap-2 care-grid-2">
               <div className="card p-2.5">
-                <div className="text-[var(--f-xs)] text-ink-3 mb-1">吉神宜趋</div>
-                <div className="text-[var(--f-sm)] text-ink-2 leading-relaxed">{info.jiShen}</div>
+                <div className="text-[length:var(--f-xs)] text-ink-3 mb-1">吉神宜趋</div>
+                <div className="text-[length:var(--f-sm)] text-ink-2 leading-relaxed">{info.jiShen}</div>
               </div>
               <div className="card p-2.5">
-                <div className="text-[var(--f-xs)] text-ink-3 mb-1">凶神宜忌</div>
-                <div className="text-[var(--f-sm)] text-ink-2 leading-relaxed">
+                <div className="text-[length:var(--f-xs)] text-ink-3 mb-1">凶神宜忌</div>
+                <div className="text-[length:var(--f-sm)] text-ink-2 leading-relaxed">
                   {info.xiongSha.length ? info.xiongSha.join('、') : '无'}
                 </div>
               </div>
@@ -210,8 +210,8 @@ export function AlmanacPage() {
                 <div className="grid grid-cols-4 gap-px bg-line care-grid-4">
                   {info.hours.map((h) => (
                     <div key={h.zhi} className="bg-card px-2 py-2">
-                      <div className="text-[var(--f-sm)] font-medium num">{h.zhi}</div>
-                      <div className={cn('text-[var(--f-xs)] mt-0.5',
+                      <div className="text-[length:var(--f-sm)] font-medium num">{h.zhi}</div>
+                      <div className={cn('text-[length:var(--f-xs)] mt-0.5',
                         h.type === '黄道' ? 'text-in' : 'text-ink-3')}>
                         {h.type}
                       </div>
@@ -221,7 +221,7 @@ export function AlmanacPage() {
               </div>
             </Section>
 
-            <p className="text-[var(--f-xs)] text-ink-3/70 text-center leading-relaxed pt-1">
+            <p className="text-[length:var(--f-xs)] text-ink-3/70 text-center leading-relaxed pt-1">
               历法数据由 lunar-javascript（MIT 协议）离线计算<br />
               民俗参考，婚丧嫁娶请以实际情况为准
             </p>
@@ -235,9 +235,9 @@ export function AlmanacPage() {
 function Cell({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="bg-card px-2.5 py-2">
-      <div className="text-[var(--f-xs)] text-ink-3">{label}</div>
-      <div className="text-[var(--f-md)] font-medium mt-0.5 truncate">{value}</div>
-      {sub && <div className="text-[var(--f-xs)] text-ink-3 mt-0.5 truncate">{sub}</div>}
+      <div className="text-[length:var(--f-xs)] text-ink-3">{label}</div>
+      <div className="text-[length:var(--f-md)] font-medium mt-0.5 truncate">{value}</div>
+      {sub && <div className="text-[length:var(--f-xs)] text-ink-3 mt-0.5 truncate">{sub}</div>}
     </div>
   );
 }
@@ -245,8 +245,8 @@ function Cell({ label, value, sub }: { label: string; value: string; sub?: strin
 function Pos({ label, v }: { label: string; v: string }) {
   return (
     <div className="text-center">
-      <div className="text-[var(--f-xs)] text-ink-3">{label}</div>
-      <div className="text-[var(--f-md)] font-medium text-accent mt-0.5">{v}</div>
+      <div className="text-[length:var(--f-xs)] text-ink-3">{label}</div>
+      <div className="text-[length:var(--f-md)] font-medium text-accent mt-0.5">{v}</div>
     </div>
   );
 }

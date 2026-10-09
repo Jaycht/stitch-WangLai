@@ -8,6 +8,7 @@ import {
   makeEventLookup, findSameName, resolveDisplayName,
 } from '../lib/types';
 import { useApp, fmtMoney, fmtDate, blankSide } from '../lib/store';
+import { useTheme } from '../lib/theme';
 import { uid } from '../lib/db';
 import { useSuggest, SuggestBox } from '../lib/Suggest';
 import { TopBar, Sheet, Empty, SearchBox, Confirm } from '../lib/ui';
@@ -29,6 +30,8 @@ type Filter = 'all' | 'in' | 'out';
 export function RecordsPage() {
   const { db, dispatch, nameOf, rawNameOf, totalIn, totalOut } = useApp();
   const nav = useNavigate();
+  // 关怀模式（大字模式）：开启时简化本页，见下方条件渲染
+  const { care } = useTheme();
   const [tab, setTab] = useState<Filter>('all');
   const [q, setQ] = useState('');
   const [edit, setEdit] = useState<GiftRecord | 'new' | null>(null);
@@ -133,12 +136,17 @@ export function RecordsPage() {
         sub={`${db.persons.length} 人 · ${db.records.length} 条`}
         right={
           <>
-            <button onClick={() => nav('/persons')} className="btn-ghost btn-sm">
-              <Users size={14} strokeWidth={1.9} />人员
-            </button>
+            {/* 关怀模式：移除「人员」入口（人员可从底部 Tab 进入，
+                记一笔时也能从「快速选已有的人」选到） */}
+            {!care && (
+              <button onClick={() => nav('/persons')} className="btn-ghost btn-sm">
+                <Users size={14} strokeWidth={1.9} />人员
+              </button>
+            )}
             {/* 全选入口：M3 说移动端勾选框不该常驻，
-                用标题栏的快捷入口解决「用户不知道能批量操作」 */}
-            {list.length > 0 && !selecting && (
+                用标题栏的快捷入口解决「用户不知道能批量操作」
+                —— 关怀模式下隐藏，全选只在进入多选态后由 SelectBar 提供 */}
+            {!care && list.length > 0 && !selecting && (
               <button
                 onClick={selectAll}
                 className="btn-ghost btn-sm shrink-0 flex items-center gap-1"
@@ -153,33 +161,35 @@ export function RecordsPage() {
       />
 
       <div className="page-body space-y-3">
-        {/*汇总条 */}
+        {/*汇总条 —— 关怀模式下隐藏，避免挤占大字列表空间 */}
+        {!care && (
         <div className="card px-3.5 py-3">
           <div className="flex items-end gap-1.5">
             <div className="flex-1">
-              <div className="text-[var(--f-xs)] text-ink-3 mb-0.5">收礼合计</div>
-              <div className="text-[var(--f-num)] font-semibold num text-in leading-none">
+              <div className="text-[length:var(--f-xs)] text-ink-3 mb-0.5">收礼合计</div>
+              <div className="text-[length:var(--f-num)] font-semibold num text-in leading-none">
                 {fmtMoney(totalIn, db.settings.currency)}
               </div>
             </div>
             <div className="w-px h-[var(--h-ctl)] bg-line" />
             <div className="flex-1">
-              <div className="text-[var(--f-xs)] text-ink-3 mb-0.5">回礼合计</div>
-              <div className="text-[var(--f-num)] font-semibold num text-out leading-none">
+              <div className="text-[length:var(--f-xs)] text-ink-3 mb-0.5">回礼合计</div>
+              <div className="text-[length:var(--f-num)] font-semibold num text-out leading-none">
                 {fmtMoney(totalOut, db.settings.currency)}
               </div>
             </div>
           </div>
           <div className="mt-2.5 pt-2.5 border-t border-line flex items-center justify-between">
-            <span className="text-[var(--f-sm)] text-ink-3">人情净值（收 − 回）</span>
+            <span className="text-[length:var(--f-sm)] text-ink-3">人情净值（收 − 回）</span>
             <span className={cn(
-              'text-[var(--f-lg)] font-semibold num',
+              'text-[length:var(--f-lg)] font-semibold num',
               net > 0 ? 'text-in' : net < 0 ? 'text-out' : 'text-ink-3',
             )}>
               {net > 0 ? '尚欠人情' : net < 0 ? '多随了' : '两清'}　{fmtMoney(Math.abs(net), db.settings.currency)}
             </span>
           </div>
         </div>
+        )}
 
         {/* 筛选 */}
         {selecting && (
@@ -202,6 +212,9 @@ export function RecordsPage() {
           />
         )}
 
+        {/* 筛选 + 搜索 —— 关怀模式下整体隐藏（大字模式下只保留列表，
+            筛选/搜索可用底部 Tab 与记一笔流程替代，减少界面元素） */}
+        {!care && (
         <div className="flex items-center gap-2">
           <div className="flex bg-card border border-line rounded-lg p-0.5 shrink-0">
             {([
@@ -211,7 +224,7 @@ export function RecordsPage() {
                 key={k}
                 onClick={() => setTab(k)}
                 className={cn(
-                  'h-[var(--h-sm)] px-2.5 rounded-md text-[var(--f-sm)] transition-colors',
+                  'h-[var(--h-sm)] px-2.5 rounded-md text-[length:var(--f-sm)] transition-colors',
                   tab === k ? 'bg-accent text-white font-medium' : 'text-ink-2',
                 )}
               >
@@ -223,6 +236,7 @@ export function RecordsPage() {
             <SearchBox value={q} onChange={setQ} placeholder="按姓名筛选" />
           </div>
         </div>
+        )}
 
         <LongPressTip
           show={tip.show}
@@ -235,7 +249,13 @@ export function RecordsPage() {
           <div className="card">
             <Empty
               text={q ? '没有匹配的人员' : '还没有任何记录'}
-              hint={q ? '换个名字试试' : '点右下角按钮记第一笔'}
+              hint={
+                q
+                  ? '换个名字试试'
+                  : care
+                    ? '点右下角「+」记第一笔；管理人员请在底部「人员」标签'
+                    : '点右下角按钮记第一笔'
+              }
             />
           </div>
         ) : (
@@ -246,8 +266,8 @@ export function RecordsPage() {
               return (
                 <div key={month}>
                   <div className="flex items-baseline justify-between px-0.5 mb-1.5">
-                    <span className="text-[var(--f-sm)] font-medium num">{month.replace('-', '年')}月</span>
-                    <span className="text-[var(--f-xs)] text-ink-3 num">
+                    <span className="text-[length:var(--f-sm)] font-medium num">{month.replace('-', '年')}月</span>
+                    <span className="text-[length:var(--f-xs)] text-ink-3 num">
                       {mi ? `收 ${fmtMoney(mi, '')}` : ''}
                       {mi && mo ? ' · ' : ''}
                       {mo ? `回 ${fmtMoney(mo, '')}` : ''}
@@ -368,7 +388,7 @@ function RecordRow({
       )} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[var(--f-lg)] font-medium truncate">{name || '（未命名）'}</span>
+          <span className="text-[length:var(--f-lg)] font-medium truncate">{name || '（未命名）'}</span>
           {evDef && <EventChip ev={evDef} />}
           {r.remindAt && (
             <span className="tagx bg-accent-soft text-accent shrink-0 inline-flex items-center gap-0.5">
@@ -377,7 +397,7 @@ function RecordRow({
             </span>
           )}
         </div>
-        <div className="text-[var(--f-xs)] text-ink-3 mt-0.5 flex items-center gap-1.5 flex-wrap">
+        <div className="text-[length:var(--f-xs)] text-ink-3 mt-0.5 flex items-center gap-1.5 flex-wrap">
           <span className="num">{fmtDate(r.received?.date || '')}</span>
           {r.received?.channel && rv > 0 && (
             <><span>·</span><span>{chLabel(r.received.channel)}</span></>
@@ -386,7 +406,7 @@ function RecordRow({
           {r.received?.place && (<><span>·</span><span>{r.received.place}</span></>)}
         </div>
         {tv > 0 && evDefBack && (
-          <div className="text-[var(--f-xs)] text-out mt-0.5 flex items-center gap-1.5 flex-wrap">
+          <div className="text-[length:var(--f-xs)] text-out mt-0.5 flex items-center gap-1.5 flex-wrap">
             <span className="text-ink-3">回礼</span>
             <span className="num">{fmtDate(r.returned!.date)}</span>
             <EventChip ev={evDefBack} />
@@ -398,17 +418,17 @@ function RecordRow({
       </div>
       <div className="text-right shrink-0">
         {rv > 0 && (
-          <div className="text-[var(--f-lg)] font-semibold num text-in leading-tight">
+          <div className="text-[length:var(--f-lg)] font-semibold num text-in leading-tight">
             +{fmtMoney(rv, '')}
           </div>
         )}
         {tv > 0 && (
-          <div className="text-[var(--f-md)] font-medium num text-out leading-tight">
+          <div className="text-[length:var(--f-md)] font-medium num text-out leading-tight">
             −{fmtMoney(tv, '')}
           </div>
         )}
         {rv === 0 && tv === 0 && (
-          <div className="text-[var(--f-sm)] text-ink-3">未填金额</div>
+          <div className="text-[length:var(--f-sm)] text-ink-3">未填金额</div>
         )}
       </div>
     </div>
@@ -419,6 +439,8 @@ function RecordRow({
 
 function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () => void }) {
   const { db, dispatch, nameOf, dupCount } = useApp();
+  // 关怀模式（大字）：事由默认折叠、隐藏姓名常驻快捷 chip
+  const { care } = useTheme();
   const isNew = rec === null;
 
   const [personId, setPersonId] = useState(rec?.personId ?? '');
@@ -434,6 +456,8 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
   const [showDup, setShowDup] = useState(false);
   const [showDupList, setShowDupList] = useState(false);
   const [showAlias, setShowAlias] = useState(false);
+  // v2.14.2：编辑页删除也要二次确认，与批量删除一致（涛哥反馈「没有删除提示弹窗」）
+  const [confirmDel, setConfirmDel] = useState(false);
   // v2.14.0：notifyOK / perms / schedMsg 已随提醒功能一并移除
 
   const hasOut = (returned?.amount ?? 0) > 0;
@@ -542,13 +566,17 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
   };
 
   const deleteRec = () => {
-    if (rec) {
-      dispatch({ t: 'removeRecord', id: rec.id });
-    }
+    setConfirmDel(true);
+  };
+
+  const doDelete = () => {
+    if (rec) dispatch({ t: 'removeRecord', id: rec.id });
+    setConfirmDel(false);
     onClose();
   };
 
   return (
+    <>
     <Sheet
       open
       onClose={onClose}
@@ -636,7 +664,7 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
             </div>
           )}
           {sameNameTotal > 1 && (
-            <p className="text-[var(--f-xs)] text-ink-3 mt-1.5">
+            <p className="text-[length:var(--f-xs)] text-ink-3 mt-1.5">
               显示为：{resolveDisplayName(
                 { id: personId, name: trimmed, alias, relation, region, createdAt: '', updatedAt: '' },
                 sameNameTotal, 0,
@@ -644,8 +672,9 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
             </p>
           )}
 
-          {/* 快速选已有的人 */}
-          {db.persons.length > 0 && (
+          {/* 快速选已有的人 —— 大字模式下隐藏这排常驻 chip，省出竖向空间；
+              「点输入框弹出的历史下拉」与「输入即检索历史」仍保留（那是浮层，不受影响）。 */}
+          {!care && db.persons.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
               {db.persons.slice(0, 12).map((p) => (
                 <button
@@ -678,16 +707,16 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
               涛哥要求「记录婚礼酒席的时间」——日期不够用。
               时间是可选的，只登记日期的场景不受影响。 */}
           <div>
-            <label className="label">日期与时间</label>
+            <label className="label">日期与时刻</label>
             <div className="flex gap-2">
               <input
-                className="field flex-1"
+                className="field flex-1 min-w-0"
                 type="date"
                 value={received.date}
                 onChange={(e) => setR({ date: e.target.value })}
               />
               <input
-                className="field w-[7.5rem] shrink-0"
+                className="field flex-1 min-w-0"
                 type="time"
                 value={received.time ?? ''}
                 onChange={(e) => setR({ time: e.target.value || undefined })}
@@ -704,6 +733,7 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
             <EventPicker
               value={received.event}
               onChange={(k) => setR({ event: k as EventKind })}
+              care={care}
             />
           </div>
           <div className="grid grid-cols-2 gap-2 care-grid-2">
@@ -756,7 +786,7 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
               onRemove={() => setReturned(null)}
             />
           ) : (
-            <div className="text-[var(--f-sm)] text-ink-3 leading-relaxed bg-paper rounded-lg px-2.5 py-2">
+            <div className="text-[length:var(--f-sm)] text-ink-3 leading-relaxed bg-paper rounded-lg px-2.5 py-2">
               对方随了礼你回过钱？点「加回礼」记上。回礼记录了，人情净值才算得准。
             </div>
           )}
@@ -772,7 +802,7 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
             一句话讲清即可，不能让用户以为漏了功能。 */}
         <div className="flex items-start gap-1.5 px-2.5 py-2 rounded-lg bg-paper">
           <BellOff size={12} strokeWidth={2} className="mt-0.5 shrink-0 text-ink-3" />
-          <p className="text-[var(--f-xs)] text-ink-3 leading-relaxed">
+          <p className="text-[length:var(--f-xs)] text-ink-3 leading-relaxed">
             本应用只做登记，不发送提醒。需要到点响，请用手机自带「时钟」设个闹钟。
           </p>
         </div>
@@ -819,6 +849,20 @@ function RecordEditor({ rec, onClose }: { rec: GiftRecord | null; onClose: () =>
         />
       )}
     </Sheet>
+
+    {/* v2.14.2：删除二次确认（覆盖在录入弹层之上） */}
+    {confirmDel && (
+      <Confirm
+        open
+        title="删除这条记录？"
+        message={<>删除后无法恢复。</>}
+        danger
+        okText="删除"
+        onCancel={() => setConfirmDel(false)}
+        onOk={doDelete}
+      />
+    )}
+    </>
   );
 }
 
@@ -843,7 +887,7 @@ function SideEditor({
 
   return (
     <div>
-      {title && <div className="text-[var(--f-sm)] font-medium text-ink-2 mb-1.5">{title}</div>}
+      {title && <div className="text-[length:var(--f-sm)] font-medium text-ink-2 mb-1.5">{title}</div>}
 
       <div className="flex items-end gap-2">
         <div className="flex-1 min-w-0">
@@ -908,16 +952,16 @@ function SideEditor({
       <>
       {/* v2.14.0：回礼方同样支持时间（涛哥：「回礼中也是只有日期没有时间」） */}
       <div className="mt-2.5">
-        <label className="label">日期与时间</label>
+        <label className="label">日期与时刻</label>
         <div className="flex gap-2">
           <input
-            className="field flex-1"
+            className="field flex-1 min-w-0"
             type="date"
             value={side.date}
             onChange={(e) => onChange({ date: e.target.value })}
           />
           <input
-            className="field w-[7.5rem] shrink-0"
+            className="field flex-1 min-w-0"
             type="time"
             value={side.time ?? ''}
             onChange={(e) => onChange({ time: e.target.value || undefined })}
@@ -991,7 +1035,7 @@ function DeleteSheet({
         </>
       }
     >
-      <p className="text-[var(--f-md)] text-ink-2 leading-relaxed">
+      <p className="text-[length:var(--f-md)] text-ink-2 leading-relaxed">
         将删除与「{name}」在 {rec.received?.date} 的这条记录，删除后无法恢复。
       </p>
     </Sheet>
@@ -1011,7 +1055,7 @@ function DeletedToast({ n }: { n: number }) {
   return (
     <div
       className="fixed left-1/2 -translate-x-1/2 bottom-[70px] z-50
-                 bg-ink/92 text-white text-[var(--f-md)] px-4 py-2
+                 bg-ink/92 text-white text-[length:var(--f-md)] px-4 py-2
                  rounded-[var(--r-ctl)] shadow-lg"
       role="status"
     >

@@ -30,8 +30,8 @@ export function TopBar({
         </button>
       )}
       <div className="min-w-0 flex-1">
-        <div className="text-[var(--f-lg)] font-semibold leading-tight truncate">{title}</div>
-        {sub && <div className="text-[var(--f-xs)] text-ink-3 leading-tight truncate">{sub}</div>}
+        <div className="text-[length:var(--f-lg)] font-semibold leading-tight truncate">{title}</div>
+        {sub && <div className="text-[length:var(--f-xs)] text-ink-3 leading-tight truncate">{sub}</div>}
       </div>
       {right}
     </div>
@@ -79,7 +79,7 @@ export function Sheet({
         aria-label={title}
       >
         <div className="flex items-center gap-2 px-3.5 h-12 border-b border-line shrink-0">
-          <div className="flex-1 text-[var(--f-lg)] font-semibold">{title}</div>
+          <div className="flex-1 text-[length:var(--f-lg)] font-semibold">{title}</div>
           <button
             onClick={onClose}
             className="w-8 h-[var(--h-ctl)] flex items-center justify-center text-ink-3 active:bg-line/50 rounded-md"
@@ -138,20 +138,20 @@ export function Confirm({
     <div className="fixed inset-0 bg-black/45 z-50 flex items-center justify-center p-6">
       <div className="bg-card rounded-xl w-full max-w-[320px] overflow-hidden">
         <div className="px-4 pt-4 pb-3">
-          <div className="text-[var(--f-lg)] font-semibold mb-1.5">{title}</div>
-          <div className="text-[var(--f-md)] text-ink-2 leading-relaxed">{message}</div>
+          <div className="text-[length:var(--f-lg)] font-semibold mb-1.5">{title}</div>
+          <div className="text-[length:var(--f-md)] text-ink-2 leading-relaxed">{message}</div>
         </div>
         <div className="flex border-t border-line">
           <button
             onClick={onCancel}
-            className="flex-1 h-11 text-[var(--f-lg)] text-ink-2 active:bg-paper"
+            className="flex-1 h-11 text-[length:var(--f-lg)] text-ink-2 active:bg-paper"
           >
             取消
           </button>
           <button
             onClick={onOk}
             className={cn(
-              'flex-1 h-11 text-[var(--f-lg)] font-medium border-l border-line',
+              'flex-1 h-11 text-[length:var(--f-lg)] font-medium border-l border-line',
               danger ? 'text-[#C62828] active:bg-[#C62828]/10' : 'text-accent active:bg-paper',
             )}
           >
@@ -238,9 +238,9 @@ export function Collapse({
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center gap-2 px-3 h-10 text-left"
       >
-        <span className="text-[var(--f-md)] font-medium flex-1">{title}</span>
+        <span className="text-[length:var(--f-md)] font-medium flex-1">{title}</span>
         {count !== undefined && (
-          <span className="text-[var(--f-xs)] text-ink-3 num">{count}</span>
+          <span className="text-[length:var(--f-xs)] text-ink-3 num">{count}</span>
         )}
         <ChevronDown
           size={15}
@@ -259,8 +259,8 @@ export function Empty({ text, hint, action }: { text: string; hint?: string; act
   return (
     <div className="empty">
       <Info size={26} strokeWidth={1.5} className="text-ink-3/50" />
-      <div className="text-[var(--f-md)]">{text}</div>
-      {hint && <div className="text-[var(--f-sm)] text-ink-3/70">{hint}</div>}
+      <div className="text-[length:var(--f-md)]">{text}</div>
+      {hint && <div className="text-[length:var(--f-sm)] text-ink-3/70">{hint}</div>}
       {action}
     </div>
   );
@@ -288,8 +288,8 @@ export function PickSheet<T extends string>({
             className="row w-full text-left active:bg-paper"
           >
             <div className="flex-1 min-w-0">
-              <div className="text-[var(--f-md)]">{o.label}</div>
-              {o.desc && <div className="text-[var(--f-sm)] text-ink-3 mt-0.5">{o.desc}</div>}
+              <div className="text-[length:var(--f-md)]">{o.label}</div>
+              {o.desc && <div className="text-[length:var(--f-sm)] text-ink-3 mt-0.5">{o.desc}</div>}
             </div>
             {value === o.key && <Check size={16} strokeWidth={2.4} className="text-accent" />}
           </button>

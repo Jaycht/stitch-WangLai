@@ -42,7 +42,7 @@ export function FieldGroup({
       <div className="flex items-baseline gap-2 mb-1.5">
         <div className="sec-title">{title}</div>
         {hint && (
-          <span className="text-[var(--f-xs)] text-ink-3 shrink-0">{hint}</span>
+          <span className="text-[length:var(--f-xs)] text-ink-3 shrink-0">{hint}</span>
         )}
       </div>
       <div className="card p-3 space-y-3">{children}</div>

@@ -34,7 +34,7 @@ export function ActionSheet({
   return (
     <Sheet open onClose={onClose} title={title}>
       {sub && (
-        <div className="text-[var(--f-sm)] text-ink-3 mb-2.5 leading-relaxed">
+        <div className="text-[length:var(--f-sm)] text-ink-3 mb-2.5 leading-relaxed">
           {sub}
         </div>
       )}
@@ -52,11 +52,11 @@ export function ActionSheet({
               {a.Icon ? <a.Icon size={16} strokeWidth={1.8} /> : null}
             </span>
             <div className="flex-1 min-w-0">
-              <div className={cn('text-[var(--f-md)]', a.danger && 'text-[#C62828]')}>
+              <div className={cn('text-[length:var(--f-md)]', a.danger && 'text-[#C62828]')}>
                 {a.label}
               </div>
               {a.desc && (
-                <div className="text-[var(--f-xs)] text-ink-3 mt-0.5">{a.desc}</div>
+                <div className="text-[length:var(--f-xs)] text-ink-3 mt-0.5">{a.desc}</div>
               )}
             </div>
           </button>
@@ -107,7 +107,7 @@ export function SelectBar({
       >
         <X size={16} strokeWidth={2.2} className="text-ink-2" />
       </button>
-      <span className="text-[var(--f-sm)] num shrink-0">
+      <span className="text-[length:var(--f-sm)] num shrink-0">
         已选 <b className="text-accent">{count}</b> {title}
       </span>
       <div className="flex-1" />

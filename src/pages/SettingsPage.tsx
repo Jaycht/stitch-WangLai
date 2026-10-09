@@ -158,25 +158,27 @@ export function SettingsPage() {
 
       <div className="page-body space-y-3.5">
         {/* 数据概览 */}
+        {!careOn && (
         <div className="card px-3.5 py-3">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-[var(--f-xs)] text-ink-3">本机数据</div>
-              <div className="text-[var(--f-lg)] font-medium mt-0.5 num">
+              <div className="text-[length:var(--f-xs)] text-ink-3">本机数据</div>
+              <div className="text-[length:var(--f-lg)] font-medium mt-0.5 num">
                 {db.persons.length} 人 · {db.records.length} 条
               </div>
             </div>
             <div className="text-right">
-              <div className="text-[var(--f-xs)] text-ink-3">架构版本</div>
-              <div className="text-[var(--f-lg)] font-medium mt-0.5 num">v{CURRENT_SCHEMA}</div>
+              <div className="text-[length:var(--f-xs)] text-ink-3">架构版本</div>
+              <div className="text-[length:var(--f-lg)] font-medium mt-0.5 num">v{CURRENT_SCHEMA}</div>
             </div>
           </div>
           {db.updatedAt && (
-            <div className="text-[var(--f-xs)] text-ink-3 mt-2 pt-2 border-t border-line">
+            <div className="text-[length:var(--f-xs)] text-ink-3 mt-2 pt-2 border-t border-line">
               最后保存：{new Date(db.updatedAt).toLocaleString('zh-CN')}
             </div>
           )}
         </div>
+        )}
 
         {/* 备份恢复 */}
         <Section title="备份与恢复">
@@ -227,13 +229,16 @@ export function SettingsPage() {
         </Section>
 
         {/* 界面风格 */}
+        {!careOn && (
         <Section title="界面风格">
           <div className="card p-3">
             <ThemePicker />
           </div>
         </Section>
+        )}
 
         {/* 配色 */}
+        {!careOn && (
         <Section title="配色">
           <div className="card p-3">
             <div className="grid grid-cols-5 gap-2">
@@ -263,19 +268,20 @@ export function SettingsPage() {
                         </svg>
                       )}
                     </span>
-                    <span className="text-[var(--f-xs)] text-ink-3 truncate w-full text-center">
+                    <span className="text-[length:var(--f-xs)] text-ink-3 truncate w-full text-center">
                       {a.name}
                     </span>
                   </button>
                 );
               })}
             </div>
-            <p className="text-[var(--f-xs)] text-ink-3 leading-relaxed mt-2.5">
+            <p className="text-[length:var(--f-xs)] text-ink-3 leading-relaxed mt-2.5">
               浅底与深字由主色自动派生，全部配色对比度均达 WCAG AA 无障碍标准。
               喜事红与丧事黑白为业务色，不随配色变化。
             </p>
           </div>
         </Section>
+        )}
 
         {/* 关怀模式 */}
         <Section title="关怀模式">
@@ -283,8 +289,8 @@ export function SettingsPage() {
             <div className="flex items-center gap-2.5">
               <Type size={16} strokeWidth={1.8} className="text-ink-3 shrink-0" />
               <div className="flex-1 min-w-0">
-                <div className="text-[var(--f-md)]">大字模式</div>
-                <div className="text-[var(--f-xs)] text-ink-3 mt-0.5 leading-relaxed">
+                <div className="text-[length:var(--f-md)]">大字模式</div>
+                <div className="text-[length:var(--f-xs)] text-ink-3 mt-0.5 leading-relaxed">
                   放大全站字号，适合长时间看账或视力不佳
                 </div>
               </div>
@@ -310,7 +316,7 @@ export function SettingsPage() {
                 <div className="h-px bg-line" />
 
                 {/* 系统字体状态：让用户看得见自己手机的设置到底生效没有 */}
-                <div className="flex items-center gap-2 text-[var(--f-xs)]">
+                <div className="flex items-center gap-2 text-[length:var(--f-xs)]">
                   <span className="text-ink-3 shrink-0">系统字体</span>
                   <span
                     className="tagx"
@@ -333,7 +339,7 @@ export function SettingsPage() {
                 </div>
 
                 <div>
-                  <div className="text-[var(--f-sm)] text-ink-3 mb-1.5">
+                  <div className="text-[length:var(--f-sm)] text-ink-3 mb-1.5">
                     应用内字号档位
                   </div>
                   <div className="grid grid-cols-3 gap-1.5 care-grid-3">
@@ -346,8 +352,8 @@ export function SettingsPage() {
                           ? { boxShadow: '0 0 0 2px var(--color-accent)' }
                           : undefined}
                       >
-                        <span className="text-[var(--f-sm)]">{f.label}</span>
-                        <span className="text-[var(--f-xs)] text-ink-3">
+                        <span className="text-[length:var(--f-sm)]">{f.label}</span>
+                        <span className="text-[length:var(--f-xs)] text-ink-3">
                           {f.key === 'auto' && sysScale > 1.01
                             ? `${sysScale.toFixed(2)}×`
                             : f.mult}
@@ -355,7 +361,7 @@ export function SettingsPage() {
                       </button>
                     ))}
                   </div>
-                  <p className="text-[var(--f-xs)] text-ink-3 leading-relaxed mt-2">
+                  <p className="text-[length:var(--f-xs)] text-ink-3 leading-relaxed mt-2">
                     「跟随系统」= 只用手机
                     <span className="mx-0.5">设置 → 显示与亮度 → 字体大小</span>
                     的值，本应用不额外放大。选具体档位时取该值，
@@ -390,8 +396,8 @@ export function SettingsPage() {
               onClick={() => doImport('replace')}
               className="card w-full p-3 text-left active:bg-paper"
             >
-              <div className="text-[var(--f-md)] font-medium">覆盖恢复</div>
-              <div className="text-[var(--f-sm)] text-ink-3 mt-0.5 leading-relaxed">
+              <div className="text-[length:var(--f-md)] font-medium">覆盖恢复</div>
+              <div className="text-[length:var(--f-sm)] text-ink-3 mt-0.5 leading-relaxed">
                 清空本机现有数据，完全用备份文件替换
               </div>
             </button>
@@ -399,8 +405,8 @@ export function SettingsPage() {
               onClick={() => doImport('merge')}
               className="card w-full p-3 text-left active:bg-paper"
             >
-              <div className="text-[var(--f-md)] font-medium">合并导入</div>
-              <div className="text-[var(--f-sm)] text-ink-3 mt-0.5 leading-relaxed">
+              <div className="text-[length:var(--f-md)] font-medium">合并导入</div>
+              <div className="text-[length:var(--f-sm)] text-ink-3 mt-0.5 leading-relaxed">
                 保留本机数据，追加备份里没有的；同一条记录取较新版本
               </div>
             </button>
@@ -413,18 +419,18 @@ export function SettingsPage() {
         <Sheet open onClose={() => setShowAbout(false)} title="关于往来礼记">
           <div className="space-y-3.5">
             <div className="text-center py-2">
-              <div className="text-[var(--f-num)] font-bold" style={{ color: st.accent }}>往来礼记</div>
-              <div className="text-[var(--f-sm)] text-ink-3 mt-0.5 num">版本 v{VERSION}</div>
+              <div className="text-[length:var(--f-num)] font-bold" style={{ color: st.accent }}>往来礼记</div>
+              <div className="text-[length:var(--f-sm)] text-ink-3 mt-0.5 num">版本 v{VERSION}</div>
               {/* 版权行里已含作者名，不再单列一行，避免名字出现两次 */}
-              <div className="text-[var(--f-xs)] text-ink-3 mt-1 num">{COPYRIGHT}</div>
+              <div className="text-[length:var(--f-xs)] text-ink-3 mt-1 num">{COPYRIGHT}</div>
             </div>
 
             <div className="card p-3.5 space-y-2">
-              <div className="text-[var(--f-md)] text-ink-2 leading-relaxed">
+              <div className="text-[length:var(--f-md)] text-ink-2 leading-relaxed">
                 记录人情往来的一本账。一次录入收礼与回礼两侧，
                 算得出净人情，也留得住联系方式。
               </div>
-              <div className="text-[var(--f-sm)] text-ink-3 leading-relaxed pt-2 border-t border-line">
+              <div className="text-[length:var(--f-sm)] text-ink-3 leading-relaxed pt-2 border-t border-line">
                 数据全部存本机，可随时导出备份文件保存到电脑或网盘。
                 换手机时导出再导入即可完整迁移。
               </div>
@@ -435,7 +441,7 @@ export function SettingsPage() {
               <div className="card overflow-hidden">
                 {CHANGELOG.map((v, i) => (
                   <div key={v.ver} className={cn('px-3 py-2.5', i % 2 === 1 && 'row-alt')}>
-                    <div className="text-[var(--f-md)] font-medium num">
+                    <div className="text-[length:var(--f-md)] font-medium num">
                       v{v.ver}
                       {i === 0 && (
                         <span className="tagx bg-accent-soft text-accent ml-1.5">当前</span>
@@ -443,7 +449,7 @@ export function SettingsPage() {
                     </div>
                     <ul className="mt-1 space-y-0.5">
                       {v.items.map((t, k) => (
-                        <li key={k} className="text-[var(--f-sm)] text-ink-2 leading-relaxed flex gap-1.5">
+                        <li key={k} className="text-[length:var(--f-sm)] text-ink-2 leading-relaxed flex gap-1.5">
                           <span className="text-ink-3 shrink-0">·</span>
                           <span>{t}</span>
                         </li>
@@ -454,7 +460,7 @@ export function SettingsPage() {
               </div>
             </div>
 
-            <div className="text-center text-[var(--f-xs)] text-ink-3/70 leading-relaxed pt-1">
+            <div className="text-center text-[length:var(--f-xs)] text-ink-3/70 leading-relaxed pt-1">
               历法数据 lunar-javascript（MIT, 6tail）<br />
               称呼计算 relationship.js（MIT, HaoLe Zheng）
             </div>
@@ -481,15 +487,15 @@ export function SettingsPage() {
         >
           <div className="space-y-2.5">
             <div className="card p-3 space-y-1.5">
-              <div className="text-[var(--f-md)] font-medium">文件校验通过</div>
-              <div className="text-[var(--f-sm)] text-ink-2 leading-relaxed">
+              <div className="text-[length:var(--f-md)] font-medium">文件校验通过</div>
+              <div className="text-[length:var(--f-sm)] text-ink-2 leading-relaxed">
                 备份内含{importRes?.db ? ` ${importRes.db.persons.length} 人 / ${importRes.db.records.length} 条记录` : ''}
               </div>
-              <div className="text-[var(--f-sm)] text-ink-2 leading-relaxed">
+              <div className="text-[length:var(--f-sm)] text-ink-2 leading-relaxed">
                 本机现有 {db.persons.length} 人 / {db.records.length} 条记录
               </div>
             </div>
-            <p className="text-[var(--f-sm)] text-ink-3 leading-relaxed">
+            <p className="text-[length:var(--f-sm)] text-ink-3 leading-relaxed">
               下一步选择「覆盖恢复」或「合并导入」。
               覆盖会清空本机现有数据，合并则只补差额、同名人员自动归并。
             </p>
@@ -531,13 +537,13 @@ function PermRow({
       className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-paper/70 active:opacity-70 text-left"
     >
       <div className="flex-1 min-w-0">
-        <div className="text-[var(--f-sm)] text-ink-2">
+        <div className="text-[length:var(--f-sm)] text-ink-2">
           {title}
-          {need && <span className="text-[var(--f-xs)] text-out ml-1.5">需开启</span>}
+          {need && <span className="text-[length:var(--f-xs)] text-out ml-1.5">需开启</span>}
         </div>
-        <div className="text-[var(--f-xs)] text-ink-3 mt-0.5 leading-snug">{desc}</div>
+        <div className="text-[length:var(--f-xs)] text-ink-3 mt-0.5 leading-snug">{desc}</div>
       </div>
-      <span className="text-[var(--f-xs)] text-accent shrink-0">去开启</span>
+      <span className="text-[length:var(--f-xs)] text-accent shrink-0">去开启</span>
       <ChevronRight size={14} strokeWidth={1.8} className="text-ink-3 shrink-0" />
     </button>
   );
@@ -563,8 +569,8 @@ function RowBtn({
         {icon}
       </span>
       <div className="flex-1 min-w-0">
-        <div className={cn('text-[var(--f-md)]', danger && 'text-[#C62828]')}>{title}</div>
-        {desc && <div className="text-[var(--f-xs)] text-ink-3 mt-0.5">{desc}</div>}
+        <div className={cn('text-[length:var(--f-md)]', danger && 'text-[#C62828]')}>{title}</div>
+        {desc && <div className="text-[length:var(--f-xs)] text-ink-3 mt-0.5">{desc}</div>}
       </div>
       <ChevronRight size={15} strokeWidth={1.8} className="text-ink-3 shrink-0" />
     </button>

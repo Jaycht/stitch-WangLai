@@ -1,7 +1,7 @@
 /** 事由选择器 —— 喜事红 / 丧事黑白，支持自定义永久保存 */
 
 import React, { useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, ChevronDown, ChevronUp } from 'lucide-react';
 import {
   CustomEvent, EventDef, EventTone, eventsByTone, allEvents, makeEventLookup,
 } from './types';
@@ -22,16 +22,25 @@ const TONE_TITLE: Record<EventTone, string> = {
  * 喜事选中=红底白字，丧事选中=黑底白字，一眼分清。
  */
 export function EventPicker({
-  value, onChange, compact,
+  value, onChange, compact, care = false,
 }: {
   value: string;
   onChange: (k: string) => void;
   /** 紧凑模式：单行内展示，常用于回礼侧 */
   compact?: boolean;
+  /** 关怀模式（大字）：主侧事由默认收起，省空间；标准模式默认铺开 */
+  care?: boolean;
 }) {
   const { db, dispatch } = useApp();
   const groups = eventsByTone(db.customEvents);
   const [adding, setAdding] = useState<EventTone | null>(null);
+  /* 主侧事由按需折叠：
+       - 大字模式（care）默认收起 → 只留一条「已选 + 展开」入口，压低弹层高度
+       - 标准模式默认铺开 → 与旧版一致，一屏看全所有事由
+     点开后铺全部按钮，选中任一事由后自动收起。回礼紧凑侧不折叠。 */
+  const [expanded, setExpanded] = useState(!care);
+  const allDefs = [...groups.fest, ...groups.solemn];
+  const selectedDef = allDefs.find((e) => e.key === value) ?? null;
 
   /* ---------- 管理页的长按多选 ----------
      与记录页/人员页同一套规范：长按 = 选中并进入多选。 */
@@ -79,7 +88,7 @@ export function EventPicker({
         <div className="flex items-center gap-1.5 mb-1.5">
           <span
             className={cn(
-              'text-[var(--f-xs)] font-medium px-1.5 py-0.5 rounded',
+              'text-[length:var(--f-xs)] font-medium px-1.5 py-0.5 rounded',
               tone === 'fest' ? 'bg-accent-soft text-accent' : 'bg-ink/8 text-ink-2',
             )}
           >
@@ -88,7 +97,7 @@ export function EventPicker({
           <div className="flex-1 h-px bg-line" />
           <button
             onClick={() => setAdding(tone)}
-            className="text-[var(--f-xs)] text-ink-3 flex items-center gap-0.5 active:text-accent"
+            className="text-[length:var(--f-xs)] text-ink-3 flex items-center gap-0.5 active:text-accent"
           >
             <Plus size={11} strokeWidth={2.4} />自定义
           </button>
@@ -96,7 +105,13 @@ export function EventPicker({
       )}
       <div className="flex flex-wrap gap-1.5">
         {groups[tone].map((e) => (
-          <EventBtn key={e.key} e={e} on={value === e.key} onClick={() => onChange(e.key)} compact={compact} />
+          <EventBtn
+            key={e.key}
+            e={e}
+            on={value === e.key}
+            onClick={() => { onChange(e.key); if (!compact) setExpanded(false); }}
+            compact={compact}
+          />
         ))}
         {compact && (
           <button
@@ -113,16 +128,53 @@ export function EventPicker({
 
   return (
     <>
-      {renderGroup('fest')}
-      {renderGroup('solemn')}
-
-      {db.customEvents.length > 0 && !compact && (
+      {compact ? (
+        /* 回礼紧凑侧：保持原样，不折叠 */
+        <>
+          {renderGroup('fest')}
+          {renderGroup('solemn')}
+        </>
+      ) : !expanded ? (
+        /* 收起态：一条已选事由 + 展开入口，点开才铺全部按钮 */
         <button
-          onClick={() => setManage(true)}
-          className="text-[var(--f-xs)] text-ink-3 mt-2.5 underline underline-offset-2"
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="w-full flex items-center justify-between gap-2 rounded-lg border border-line bg-card
+                     px-3 h-[var(--h-ctl)] text-left cursor-pointer active:bg-line/40"
         >
-          管理自定义事由（{db.customEvents.length}）
+          <span className="flex items-center gap-2 min-w-0">
+            {selectedDef ? (
+              <EventChip ev={selectedDef} on />
+            ) : (
+              <span className="text-ink-3">选择事由</span>
+            )}
+          </span>
+          <span className="flex items-center gap-0.5 text-ink-3 text-[length:var(--f-sm)] shrink-0">
+            展开<ChevronDown size={14} strokeWidth={2} />
+          </span>
         </button>
+      ) : (
+        <>
+          {renderGroup('fest')}
+          {renderGroup('solemn')}
+          <div className="flex items-center justify-between mt-2.5">
+            {db.customEvents.length > 0 && (
+              <button
+                onClick={() => setManage(true)}
+                className="text-[length:var(--f-xs)] text-ink-3 underline underline-offset-2"
+              >
+                管理自定义事由（{db.customEvents.length}）
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setExpanded(false)}
+              className="text-[length:var(--f-xs)] text-ink-3 ml-auto flex items-center gap-0.5"
+            >
+              收起<ChevronUp size={13} strokeWidth={2} />
+            </button>
+          </div>
+        </>
       )}
 
       {/* 新增自定义事由 */}
@@ -146,7 +198,7 @@ export function EventPicker({
               placeholder={adding === 'fest' ? '如：乔迁 / 订婚 / 升学宴' : '如：出殡 / 周年 / 上梁'}
               autoComplete="off"
             />
-            <p className="text-[var(--f-xs)] text-ink-3 mt-2 leading-relaxed">
+            <p className="text-[length:var(--f-xs)] text-ink-3 mt-2 leading-relaxed">
               保存后永久出现在{adding === 'fest' ? '喜事' : '丧事'}列表里，
               以后记账直接点选，不用再输。
             </p>
@@ -161,7 +213,7 @@ export function EventPicker({
           onClose={() => { setManage(false); exitSelect(); }}
           title="自定义事由"
           footer={selecting
-            ? <span className="text-[var(--f-sm)] text-ink-3 w-full text-center py-1.5">
+            ? <span className="text-[length:var(--f-sm)] text-ink-3 w-full text-center py-1.5">
                 长按可多选后批量删除
               </span>
             : <button className="btn-ghost flex-1" onClick={() => setManage(false)}>完成</button>}
@@ -193,7 +245,7 @@ export function EventPicker({
               />
             ))}
           </div>
-          <p className="text-[var(--f-xs)] text-ink-3 mt-2 leading-relaxed">
+          <p className="text-[length:var(--f-xs)] text-ink-3 mt-2 leading-relaxed">
             删除自定义事由不会影响已有记录，历史记录会显示为原键名。
             长按任意一项可进入多选，批量删除更快。
           </p>
@@ -223,7 +275,7 @@ export function EventBtn({
 }: { e: EventDef; on: boolean; onClick: () => void; compact?: boolean }) {
   const cls = compact
     ? cn(
-        'px-2.5 h-[var(--h-sm)] rounded-md border text-[var(--f-sm)] transition-colors',
+        'px-2.5 h-[var(--h-sm)] rounded-md border text-[length:var(--f-sm)] transition-colors',
         on
           ? e.tone === 'fest'
             ? 'bg-accent border-accent text-white font-medium'
@@ -231,7 +283,7 @@ export function EventBtn({
           : 'border-line bg-card text-ink-2',
       )
     : cn(
-        'px-2.5 h-[var(--h-ctl)] rounded-md border text-[var(--f-md)] transition-colors',
+        'px-2.5 h-[var(--h-ctl)] rounded-md border text-[length:var(--f-md)] transition-colors',
         on
           ? e.tone === 'fest'
             ? 'bg-accent border-accent text-white font-medium'
@@ -300,7 +352,7 @@ function EventRow({
     >
       {selecting && <CheckMark on={selected} />}
       <EventChip ev={c} />
-      <span className="flex-1 text-[var(--f-md)] truncate">{c.label}</span>
+      <span className="flex-1 text-[length:var(--f-md)] truncate">{c.label}</span>
       <span className={cn(
         'tagx shrink-0',
         c.tone === 'fest' ? 'bg-accent-soft text-accent' : 'bg-ink/8 text-ink-2',

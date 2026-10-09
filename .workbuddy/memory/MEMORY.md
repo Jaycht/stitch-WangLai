@@ -70,6 +70,30 @@
    ```
 6. git 推送用 `https_proxy=http://127.0.0.1:7897`（环境变量里的透明代理是失效的）
 
+## ★ 版本号 / 打包（v2.14.9 立规矩）
+
+- **唯一事实源 = `src/version.ts` 的 `VERSION`**（「关于」页读的就是它）
+- CI `.github/workflows/build-apk.yml` 的 `Sync version from src/version.ts` 步骤：
+  读 VERSION → `sed` 写回 `android/app/build.gradle` 的
+  `versionName` + `versionCode`（= `M*10000 + m*100 + p`，如 2.14.9 → 21409）
+  → 再用 `$VER` 命名 APK（`往来礼记-vX.Y.Z-测试版/正式版.apk`）
+- **改版本只改 `src/version.ts` 一处**；build.gradle 里那份只是本地构建兜底
+- 教训来源：v2.14.8 时页面上 2.14.8、build.gradle 还停在 2.14.1
+  → 导出的包叫「往来礼记-v2.14.1-正式版.apk」（涛哥截图指出）
+
+## 验证脚本清单（`_ui_compare/`，跑前先起 `serve.py 3000`）
+
+| 脚本 | 项数 | 覆盖 |
+|---|---|---|
+| `care_smoke.py` | 28 | 关怀模式精简基线 |
+| `eventpicker_collapse.py` | 16 | 事由折叠 |
+| `v2146_four_fixes.py` | 31 | 录入模型 / 大字极简 |
+| `v2147_icon_font.py` | 31 | 图标几何 / 年鉴下拉 / FAB 不遮挡 |
+| `v2148_persons_care.py` | 37 | 人员页只留姓名金额 / 同名后缀两行 |
+| `v2149_three_fixes.py` | 46 | 太岁年份横滑 / 问句对齐 / 版本号单一事实源 |
+
+合计 **189 项**（2026-10-10）。改动后全跑一遍，别只跑新的。
+
 ## Tailwind v4 踩坑
 - `text-[var(--f-*)]` 会被当成**颜色**类 → font-size 从未生成 → 全app 文字挤在 13px
 - 正确写法：**`text-[length:var(--f-*)]`**（237 处，已全局替换）
@@ -84,3 +108,10 @@
   （字号放大时容器高度会跟着长高，写死 px 必然装不下字）
 - 横排按钮**绝不能**依赖 `shrink-0` 硬撑，会被挤出屏幕 → 用 `flex-1 min-w-0` 均分
 - CSS 变体类不能只写颜色，必须自带 `display/align-items/height/font-size/padding`
+- **横向滚动选择条（如太岁年份）必须把选中项自动居中**：首屏左右各露出
+  半截别的选项，用户才知道「这里能滑」。横滑最大的问题不是滑不动，
+  是**用户不知道能滑**（v2.14.9，涛哥点名要「滚轮式一行横滑」）
+  - 用 `overflow-x-auto` + `shrink-0`（子项不压缩）+ `snap-x snap-center`
+  - 算居中位置用 **rect 差值**，不要用 `offsetLeft`（依赖 offsetParent）
+  - 别用 `flex-1` 硬塞一行：子项有最小内容宽度（如「2026」4 个数字），
+    总宽必然溢出且无滚动容器 → 后面的选项点不到（v2.14.9 踩过）

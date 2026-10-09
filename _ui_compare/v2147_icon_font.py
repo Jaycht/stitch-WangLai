@@ -133,15 +133,24 @@ with sync_playwright() as p:
            f"wrapped={wrapped[:3]}")
         pg.click(".tabitem:has-text('记录')"); pg.wait_for_timeout(200)
 
-    # ===== 问题2b：人员页姓氏圆牌必须是正圆（两种模式）=====
-    for mode, loader in (('大字', load_care), ('标准', load_normal)):
+    # ===== 问题2b：人员页姓氏圆牌（★ 断言按 v2.14.8 更新）=====
+    # v2.14.7 修的是「圆牌被拉成长条」；v2.14.8 涛哥要求大字模式卡片
+    # 只留「姓名 + 金额」，圆牌整块砍掉了。所以：
+    #   大字模式 → 断言**不存在**圆牌；标准模式 → 仍断言是正圆。
+    # （设计变更必须同步断言，否则脚本会一直拿过时的期望报 FAIL）
+    for mode, loader, expect in (
+        ('大字', load_care, False), ('标准', load_normal, True),
+    ):
         loader(pg)
         pg.click(".tabitem:has-text('人员')"); pg.wait_for_timeout(500)
         av = measure_avatar(pg)
-        ok(f"问题2 {mode}模式找到姓氏圆牌", av is not None, f"{av}")
-        if av:
-            ok(f"问题2 {mode}模式姓氏圆牌是正圆", 0.9 <= av['ratio'] <= 1.1,
-               f"w={av['w']} h={av['h']} ratio={av['ratio']}")
+        if not expect:
+            ok("问题2 大字模式姓氏圆牌已随卡片精简砍掉(v2.14.8)", av is None, f"{av}")
+        else:
+            ok(f"问题2 {mode}模式找到姓氏圆牌", av is not None, f"{av}")
+            if av:
+                ok(f"问题2 {mode}模式姓氏圆牌是正圆", 0.9 <= av['ratio'] <= 1.1,
+                   f"w={av['w']} h={av['h']} ratio={av['ratio']}")
         pg.click(".tabitem:has-text('记录')"); pg.wait_for_timeout(200)
 
     # ===== 问题1：大字模式字号 = 原生下拉「选择字体大小」，无倍数数字 =====

@@ -55,10 +55,14 @@ export function LongPressTip({
   show,
   role,
   onClose,
+  care,
 }: {
   show: boolean;
   role: '记录' | '人员';
   onClose: () => void;
+  /** 大字模式：文案精简 —— 且**不能**再提「顶部全选」，
+      因为大字模式已把那个入口藏起来了，说出来等于骗人 */
+  care?: boolean;
 }) {
   // 淡出动画
   const [mounted, setMounted] = useState(show);
@@ -95,17 +99,21 @@ export function LongPressTip({
         <div className="flex items-center gap-1.5">
           <MousePointerClick size={12} strokeWidth={2} className="text-ink-3 shrink-0" />
           <span className="shrink-0">短按</span>
-          <span className="text-ink-3 truncate">打开详情</span>
+          <span className="text-ink-3 truncate">{care ? '看详情' : '打开详情'}</span>
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
           <Hand size={12} strokeWidth={2.2} className="text-accent shrink-0" />
           <span className="shrink-0">长按</span>
-          <span className="text-ink-3 truncate">选中这条，可继续点选其它条目</span>
+          <span className="text-ink-3 truncate">
+            {care ? '可多选删除' : '选中这条，可继续点选其它条目'}
+          </span>
         </div>
-        <div className="text-[length:var(--f-xs)] text-ink-3 mt-1.5 leading-relaxed">
-          顶部有「全选」可一键选中全部；滑动列表不会误触发。
-          多选时按返回键会先退出多选，不会离开本页。
-        </div>
+        {!care && (
+          <div className="text-[length:var(--f-xs)] text-ink-3 mt-1.5 leading-relaxed">
+            顶部有「全选」可一键选中全部；滑动列表不会误触发。
+            多选时按返回键会先退出多选，不会离开本页。
+          </div>
+        )}
       </div>
       <button
         onClick={onClose}

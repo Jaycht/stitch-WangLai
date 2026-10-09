@@ -248,6 +248,7 @@ export function RecordsPage() {
           show={tip.show}
           role="记录"
           onClose={tip.dismiss}
+          care={care}
         />
 
         {/* 列表 */}

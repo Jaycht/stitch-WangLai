@@ -136,7 +136,7 @@ export function PersonsPage() {
           一个返回箭头，点它会退回上一个 Tab —— 语义不对。 */}
       <TopBar
         title="人员"
-        sub={`${db.persons.length} 人 · 有往来 ${withDebt.length} 人`}
+        sub={care ? `共 ${db.persons.length} 人` : `${db.persons.length} 人 · 有往来 ${withDebt.length} 人`}
         right={
           /* 全选入口：解决「用户不知道能批量操作」的可发现性 */
           list.length > 0 && !selecting && !care ? (
@@ -156,7 +156,7 @@ export function PersonsPage() {
           否则内容少、页面滚不动时最后一张卡片会永久压在加号下面 */}
       <div className="page-body has-fab space-y-3">
         {!selecting && (
-          <LongPressTip show={tip.show} role="人员" onClose={tip.dismiss} />
+          <LongPressTip show={tip.show} role="人员" onClose={tip.dismiss} care={care} />
         )}
 
         {!care && totalNet !== 0 && (
@@ -217,53 +217,65 @@ export function PersonsPage() {
                   onLongPress={() => onRowLongPress(s.person.id)}
                   className={cn(i > 0 && 'border-t border-line')}
                 >
-                  {/* 姓氏圆牌。★ v2.14.7（涛哥截图指正）：原来 w-8 h-[var(--h-ctl)]，
-                      宽固定 32px、高随字号涨 → 大字下变成一颗细长「药丸」。
-                      改为**正圆**且边长跟随字号，视觉上就是个圆牌。 */}
-                  <div
-                    className="w-[calc(var(--f-md)*2.1)] h-[calc(var(--f-md)*2.1)] rounded-full
-                                bg-accent-soft text-accent
-                                flex items-center justify-center text-[length:var(--f-md)]
-                                font-medium shrink-0"
-                  >
-                    {s.person.name.slice(0, 1)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
+                  {/* ★ v2.14.8 大字模式（涛哥原则：给年纪大的人用，在不破坏录入
+                      与备份恢复的前提下越简单越好）：**只显示姓名 + 金额**。
+                      姓氏圆牌、关系标签、同名标签、「N 次 · 收 X · 回 Y」
+                      与「人家多给 / 我多随 / 两清」全部隐藏 ——
+                      老人扫一眼只要知道「谁、多少钱」，其余点进详情看得到。 */}
+                  {!care && (
+                    /* 姓氏圆牌。★ v2.14.7（涛哥截图指正）：原来 w-8 h-[var(--h-ctl)]，
+                       宽固定 32px、高随字号涨 → 大字下变成一颗细长「药丸」。
+                       改为**正圆**且边长跟随字号，视觉上就是个圆牌。 */
+                    <div
+                      className="w-[calc(var(--f-md)*2.1)] h-[calc(var(--f-md)*2.1)] rounded-full
+                                  bg-accent-soft text-accent
+                                  flex items-center justify-center text-[length:var(--f-md)]
+                                  font-medium shrink-0"
+                    >
+                      {s.person.name.slice(0, 1)}
+                    </div>
+                  )}
+                  <div className={cn('flex-1 min-w-0', !care && 'pr-2')}>
+                    <div className={cn('flex items-center gap-1.5', care && 'min-w-0')}>
                       <span className="text-[length:var(--f-lg)] font-medium truncate">
                         {dn.get(s.person.id) ?? s.person.name}
                       </span>
-                      {s.person.relation && (
+                      {!care && s.person.relation && (
                         <span className="tagx bg-line/60 text-ink-2 shrink-0">
                           {s.person.relation}
                         </span>
                       )}
-                      {showDupTag && (
+                      {!care && showDupTag && (
                         <span
                           className="tagx bg-accent-soft text-accent shrink-0"
                           onClick={(e) => { e.stopPropagation(); setAliasFor(s.person); }}
                         >同名 {same.length}</span>
                       )}
                     </div>
-                    <div className="text-[length:var(--f-xs)] text-ink-3 mt-0.5 num">
-                      {s.count > 0
-                        ? `${s.count} 次 · 收 ${fmtMoney(s.received, '')} · 回 ${fmtMoney(s.returned, '')}`
-                        : '暂无往来记录'}
-                    </div>
+                    {!care && (
+                      <div className="text-[length:var(--f-xs)] text-ink-3 mt-0.5 num">
+                        {s.count > 0
+                          ? `${s.count} 次 · 收 ${fmtMoney(s.received, '')} · 回 ${fmtMoney(s.returned, '')}`
+                          : '暂无往来记录'}
+                      </div>
+                    )}
                   </div>
                   <div className="text-right shrink-0">
                     {s.count > 0 ? (
                       <>
                         <div className={cn(
                           'text-[length:var(--f-lg)] font-semibold num',
+                          care && 'leading-tight',
                           s.net > 0 ? 'text-in' : s.net < 0 ? 'text-out' : 'text-ink-3',
                         )}>
                           {s.net > 0 ? '+' : s.net < 0 ? '−' : ''}
                           {fmtMoney(Math.abs(s.net), '')}
                         </div>
-                        <div className="text-[length:var(--f-xs)] text-ink-3">
-                          {s.net > 0 ? '人家多给' : s.net < 0 ? '我多随' : '两清'}
-                        </div>
+                        {!care && (
+                          <div className="text-[length:var(--f-xs)] text-ink-3">
+                            {s.net > 0 ? '人家多给' : s.net < 0 ? '我多随' : '两清'}
+                          </div>
+                        )}
                       </>
                     ) : (
                       <ChevronRight size={16} strokeWidth={1.8} className="text-ink-3" />

@@ -7,8 +7,10 @@ android {
         applicationId "com.lijiang.giftbook"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 21
-        versionName "2.14.1"
+        // ★ 这两行由 CI 依据 src/version.ts 自动改写（单一事实源），
+        //   这里的值只是留给本地构建的兜底，改版本时同步 src/version.ts 即可。
+        versionCode 21409
+        versionName "2.14.9"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

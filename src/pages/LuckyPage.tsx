@@ -1,6 +1,6 @@
 /** 吉日良辰 + 太岁查询 */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { findLuckyDays, getTaiSui, LUCKY_TOPICS, ALL_ANIMALS, LuckyResult } from '../lib/almanac';
 import { useApp } from '../lib/store';
@@ -142,20 +142,63 @@ export function TaiSuiPage() {
   const info = useMemo(() => getTaiSui(year), [year]);
   const thisYear = new Date().getFullYear();
   const years = Array.from({ length: 9 }, (_, i) => thisYear - 2 + i);
+  const barRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * 选中的年份自动滚到中间。
+   *
+   * ★ v2.14.9（涛哥要求改成「一行可左右拖的滚轮式」）：
+   * 横向滚动条最大的毛病是**用户不知道能滑** —— 老人更不会去试。
+   * 所以首屏把「今年」居中：左右都露出半截别的年份，
+   * 「这里还能拖」这件事本身就成了提示。换年时也把新选中项居中。
+   *
+   * 用 rect 差值算而不是 offsetLeft：offsetLeft 依赖 offsetParent，
+   * 卡片一旦被加上 position 就会算错。
+   */
+  useEffect(() => {
+    const bar = barRef.current;
+    if (!bar) return;
+    const el = bar.querySelector<HTMLElement>('[data-sel="1"]');
+    if (!el) return;
+    const barRect = bar.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const delta = (elRect.left - barRect.left) - (bar.clientWidth - elRect.width) / 2;
+    bar.scrollLeft = Math.max(
+      0,
+      Math.min(bar.scrollLeft + delta, bar.scrollWidth - bar.clientWidth),
+    );
+  }, [year]);
 
   return (
     <>
       <TopBar title="太岁查询" sub={`${info.gz}年 · ${info.animal}年`} onBack={() => nav(-1)} />
 
       <div className="page-body space-y-3">
-        {/* 年份选择 */}
-        <div className="card p-2 flex gap-1">
+        {/* 年份选择 —— 一行横向滚动（涛哥 2026-10-10 定的样子：滚轮式左右拖）
+            ★ 背景：原来 9 个 `flex-1` 硬塞一行，按钮有「2026」4 个数字的
+            最小内容宽度，加起来必然超出屏幕；外层又没有滚动容器，
+            于是 2028 之后的年份**既看不见也点不到，还拖不动**。
+            现在：
+            · 容器 overflow-x-auto，一行排开，手指左右拖
+            · 按钮 shrink-0（不给压缩）+ min-w 跟着字号推导（不写死 px），
+              保证任何字号下 4 位数字都放得下且点得动
+            · snap 到整格，拖完停在完整年份上，像滚轮
+            · 选中项自动居中（见上面的 useEffect），兼顾「让用户知道能滑」 */}
+        <div
+          ref={barRef}
+          className="card p-2 flex gap-1 overflow-x-auto snap-x"
+        >
           {years.map((y) => (
             <button
               key={y}
+              data-sel={y === year ? '1' : undefined}
               onClick={() => setYear(y)}
-              className={cn('flex-1 h-[var(--h-btn)] rounded-md text-[length:var(--f-md)] num transition-colors',
-                y === year ? 'bg-accent text-white font-medium' : 'text-ink-2 active:bg-paper')}
+              className={cn(
+                'snap-center shrink-0 min-w-[calc(var(--f-md)*3.4)] px-3',
+                'h-[var(--h-btn)] rounded-md',
+                'text-[length:var(--f-md)] num transition-colors',
+                y === year ? 'bg-accent text-white font-medium' : 'text-ink-2 active:bg-paper',
+              )}
             >
               {y}
             </button>

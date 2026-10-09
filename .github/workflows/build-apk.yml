@@ -23,6 +23,28 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Sync version from src/version.ts
+        # ★ v2.14.9：以前 APK 名里的版本号取自 android/app/build.gradle 的
+        #   versionName，而那个字段是**手工**维护的 —— 页面已经到 2.14.8，
+        #   它却还停在 2.14.1，于是导出「往来礼记-v2.14.1-正式版.apk」。
+        #   现在把 **src/version.ts 当作唯一事实源**：CI 读它，写回
+        #   build.gradle 的 versionName / versionCode，三处（关于页、
+        #   APK 内部版本、文件名）从此不可能再对不上。
+        run: |
+          VER=$(grep -oE "VERSION = '[0-9]+\.[0-9]+\.[0-9]+'" src/version.ts \
+                | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          if [ -z "$VER" ]; then
+            echo "::error::无法从 src/version.ts 读出 VERSION，请检查该文件格式"
+            exit 1
+          fi
+          IFS=. read -r MA MI PA <<< "$VER"
+          CODE=$((MA * 10000 + MI * 100 + PA))
+          echo "读到版本 $VER（versionCode $CODE）"
+          sed -i -E "s/versionCode [0-9]+/versionCode ${CODE}/" android/app/build.gradle
+          sed -i -E "s/versionName \"[^\"]*\"/versionName \"${VER}\"/" android/app/build.gradle
+          grep -E 'versionCode|versionName' android/app/build.gradle
+          echo "VER=${VER}" >> $GITHUB_ENV
+
       - name: Build web app
         run: npm run build
 
@@ -79,10 +101,13 @@ jobs:
 
       - name: Collect APKs
         run: |
-          # 只在 versionName 那一行里提取，避免抓到别处的数字。
-          # 单行写，不用反斜杠续行 —— YAML 折行会吞掉续行符。
-          VER=$(grep versionName android/app/build.gradle | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-          [ -z "$VER" ] && VER="2.9.0"
+          # 版本号用上一步从 src/version.ts 读出来、写进 $GITHUB_ENV 的 $VER，
+          # 不再现从 build.gradle 里 grep（那样等于又开了一个事实源）。
+          if [ -z "$VER" ]; then
+            echo "::error::没有拿到 VER，版本号同步步骤可能失败了"
+            exit 1
+          fi
+          echo "APK 将命名为 往来礼记-v${VER}-*.apk"
           mkdir -p apk-out
           cp android/app/build/outputs/apk/debug/app-debug.apk \
              "apk-out/往来礼记-v${VER}-测试版.apk"

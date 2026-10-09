@@ -35,12 +35,26 @@ export function RelationPage() {
               placeholder="外婆的哥哥"
             />
             <button className="btn-icon" onClick={() => run(q)} aria-label="计算">
-              <Search size={15} strokeWidth={2} />
+              {/* ★ v2.14.9（涛哥截图：放大镜太小不美观）：
+                  原来写死 size={15}，输入框是随字号长高的，图标却永远 15px，
+                  越是大字越显得空。改成跟着字号走（标准约 19px、大字约 27px）。
+                  lucide 的 svg 自带 width/height 属性，CSS 类优先级更高，能覆盖掉。 */}
+              <Search
+                strokeWidth={2}
+                className="w-[calc(var(--f-md)*1.5)] h-[calc(var(--f-md)*1.5)]"
+              />
             </button>
           </div>
-          <div className="flex flex-wrap gap-1.5 mt-2">
+          {/* 快捷问句
+              ★ v2.14.9（涛哥截图：右侧留白、和上方搜索按钮不对齐）：
+              原来是 flex-wrap，每个 pill 的宽度由文字长短决定，
+              行末自然对不齐，右边空出一条 —— 看着像没做完。
+              改成**两列等宽网格**：每格等宽、铺满整行，右边缘与上方
+              搜索按钮严格对齐。大字模式下 care-grid-2 会自动转单列，
+              否则 8 个字的问句在大字号下放不进半屏。 */}
+          <div className="grid grid-cols-2 gap-2 mt-2 care-grid-2">
             {EXAMPLE_QUESTIONS.map((s) => (
-              <button key={s} onClick={() => run(s)} className="pill">
+              <button key={s} onClick={() => run(s)} className="pill w-full">
                 {s}
               </button>
             ))}

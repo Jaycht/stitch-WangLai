@@ -158,6 +158,7 @@ with sync_playwright() as p:
       return {
         tag: s.tagName,
         h: Math.round(r.height), w: Math.round(r.width),
+        fontSize: parseFloat(getComputedStyle(s).fontSize),
         value: s.value,
         options: [...s.options].map(o => o.text),
         label: lbl ? lbl.innerText.trim() : null,
@@ -173,7 +174,13 @@ with sync_playwright() as p:
     if sel:
         ok("问题1 标题是『选择字体大小』", sel['label'] == '选择字体大小',
            f"label={sel['label']!r}")
-        ok("问题1 只占一行(高度<110px)", sel['h'] < 110, f"h={sel['h']}")
+        # ★ 涛哥定稿：下拉框「只比字体稍大点」。
+        # 原来用 .field（--h-ctl = 12px + f-md×2.77）→ 大字下 88px，比字号还高 3.2 倍，太笨重。
+        # 现在 .field-select = max(36px, f-md×1.45 + 4px) → 大字 44px（1.61 倍）、标准 36px。
+        ratio = sel['h'] / sel['fontSize'] if sel['fontSize'] else 0
+        ok("问题1 下拉框比字号稍大(1.3~1.9 倍)",
+           1.3 <= ratio <= 1.9, f"h={sel['h']} fs={sel['fontSize']} ratio={ratio:.2f}")
+        ok("问题1 下拉框不再被撑大(≤48px)", sel['h'] <= 48, f"h={sel['h']}")
         ok("问题1 档位完整(>=7 含标准)", len(sel['options']) >= 7, f"{sel['options']}")
         ok("问题1 不再显示倍数(2.10×等)",
            '2.10' not in (sel['boxText'] or '') and '×' not in (sel['boxText'] or ''),
@@ -211,6 +218,49 @@ with sync_playwright() as p:
         in_normal = pg.evaluate("() => !!document.querySelector('#care-font-size')")
         ok("问题1 标准模式不显示该下拉(只改大字模式)", in_normal is False,
            f"exists={in_normal}")
+
+    # ===== 问题3：悬浮加号（FAB）不得遮挡列表内容 =====
+    # 涛哥真机截图：人员页最后一张卡片被加号压住（「回 0」看不见）。
+    # 根因：.page-body 底部留白只算了 Tab 栏，没算 FAB（FAB 是 fixed 浮层）。
+    # 量化判据：滚到底后，内容底边必须高于 FAB 顶边。
+    FAB_JS = """() => {
+      const fab = document.querySelector('.fab');
+      if (!fab) return { noFab: true };
+      const f = fab.getBoundingClientRect();
+      const pb = document.querySelector('.page-body');
+      let worst = 0, worstText = '';
+      document.querySelectorAll('.card, .row').forEach(el => {
+        const b = el.getBoundingClientRect();
+        const ox = Math.min(b.right, f.right) - Math.max(b.left, f.left);
+        const oy = Math.min(b.bottom, f.bottom) - Math.max(b.top, f.top);
+        if (ox > 0 && oy > 0) {
+          const a = ox * oy;
+          if (a > worst) { worst = a; worstText = el.innerText.slice(0, 20); }
+        }
+      });
+      return {
+        noFab: false,
+        fabTop: Math.round(f.top),
+        padBottom: pb ? Math.round(parseFloat(getComputedStyle(pb).paddingBottom)) : null,
+        overlapArea: Math.round(worst),
+        overlapText: worstText,
+        // FAB 顶边距视口底的距离 = 内容至少要留的底部留白
+        needPad: Math.round(window.innerHeight - f.top),
+      };
+    }"""
+    for tab, label in (('记录', '记录页'), ('人员', '人员页')):
+        load_care(pg)
+        pg.click(f".tabitem:has-text('{tab}')"); pg.wait_for_timeout(700)
+        # 滚到底再量（内容短时滚不动，正好暴露问题）
+        pg.evaluate("() => { const el = document.scrollingElement; el.scrollTop = el.scrollHeight; }")
+        pg.wait_for_timeout(400)
+        r = pg.evaluate(FAB_JS)
+        ok(f"问题3 大字模式{label}有悬浮加号", r and r.get('noFab') is False, f"{r}")
+        if r and not r.get('noFab'):
+            ok(f"问题3 大字模式{label}底部留白足够让开加号",
+               r['padBottom'] >= r['needPad'], f"pad={r['padBottom']} need={r['needPad']}")
+            ok(f"问题3 大字模式{label}加号不遮挡内容",
+               r['overlapArea'] == 0, f"area={r['overlapArea']} text={r['overlapText']!r}")
 
     b.close()
 

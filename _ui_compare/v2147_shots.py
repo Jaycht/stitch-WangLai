@@ -48,6 +48,11 @@ with sync_playwright() as p:
     pg.click(".tabitem:has-text('人员')"); pg.wait_for_timeout(500)
     pg.screenshot(path=f'{OUT}/22_persons_care.png')
 
+    # 大字模式 人员页 —— 滚到底（验证悬浮加号不再压住最后一张卡）
+    pg.evaluate("() => { const el = document.scrollingElement; el.scrollTop = el.scrollHeight; }")
+    pg.wait_for_timeout(400)
+    pg.screenshot(path=f'{OUT}/28_persons_care_bottom.png')
+
     # 标准模式 人员页
     load(pg)
     pg.click(".tabitem:has-text('人员')"); pg.wait_for_timeout(500)

@@ -905,3 +905,29 @@ body.kb-open .fab { transform: translateY(80%); }
   padding: var(--s-3) var(--s-3)
     calc(var(--h-tab) + var(--sab) + 28px);
 }
+
+/* ---------- 原生下拉框（select）专用高度 ----------
+   ★ 涛哥指正：字号下拉用了 .field，而 .field 的高度是 --h-ctl
+   （= 12px + f-md × 2.77，为「手指好点」的输入框设计），
+   大字模式下被撑到 88px，框太大、很浪费。
+   下拉框是「点一下弹系统选择器」，不需要输入框那么高，
+   **只比字号稍大一点**即可：f-md × 1.45 + 4px 上下内边距。
+   大字 xxl（f-md=27.3px）→ 44px；标准（f-md=13px）→ 36px。
+   44px 正好是 iOS 建议的最小触控目标，再小老人不好点。
+   ⚠️ 必须与 .field 同用（只覆盖 height/padding，其余沿用 .field） */
+.field-select {
+  height: max(36px, calc(var(--f-md) * 1.45 + 4px));
+  padding: 0 8px;
+}
+
+/* 带悬浮加号（FAB）的页面：底部再让出一整个 FAB 的高度。
+   ★ 为什么必须单独加：FAB 是 position:fixed 浮在内容之上，
+   正常留白（上面那条）只够避开 Tab 栏，不够避开 FAB。
+   结果内容少、页面滚不动时，最后一张卡片会**永久**压在加号下面
+   （涛哥真机截图：人员页「回 0」被加号盖住）。
+   实测：FAB 底距视口 16px、直径 56px → 顶部距视口底 188px，
+   而原留白只有 144px，所以怎么滚都躲不开。
+   FAB 三个数：bottom offset 16 + 直径 56 + 间隙 12 */
+.page-body.has-fab {
+  padding-bottom: calc(var(--h-tab) + var(--sab) + 16px + 56px + 12px);
+}

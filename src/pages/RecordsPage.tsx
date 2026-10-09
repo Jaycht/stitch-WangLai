@@ -165,7 +165,8 @@ export function RecordsPage() {
         }
       />
 
-      <div className="page-body space-y-3">
+      {/* has-fab：本页有悬浮加号，底部要让出加号的高度，否则最后一行会被压住 */}
+      <div className="page-body has-fab space-y-3">
         {/*汇总条 —— 关怀模式下隐藏，避免挤占大字列表空间 */}
         {!care && (
         <div className="card px-3.5 py-3">

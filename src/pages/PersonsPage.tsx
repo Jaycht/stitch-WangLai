@@ -152,7 +152,9 @@ export function PersonsPage() {
         }
       />
 
-      <div className="page-body space-y-3">
+      {/* has-fab：本页有悬浮加号，底部要让出加号的高度，
+          否则内容少、页面滚不动时最后一张卡片会永久压在加号下面 */}
+      <div className="page-body has-fab space-y-3">
         {!selecting && (
           <LongPressTip show={tip.show} role="人员" onClose={tip.dismiss} />
         )}

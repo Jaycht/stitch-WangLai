@@ -353,7 +353,9 @@ export function SettingsPage() {
                   </label>
                   <select
                     id="care-font-size"
-                    className="field"
+                    /* .field 保证外观一致，.field-select 把高度收成「只比字号稍大」
+                       （.field 的 --h-ctl 在大字下会到 88px，太大） */
+                    className="field field-select"
                     value={st.fontSize ?? 'off'}
                     onChange={(e) =>
                       dispatch({ t: 'settings', s: { fontSize: e.target.value } })

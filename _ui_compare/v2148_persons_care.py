@@ -45,28 +45,41 @@ def goto_persons(pg):
 # 量每一行：左列（姓名区）/ 右列（金额区）各自渲染了几「视觉行」，
 # 以及它们实际显示出来的文字。视觉行 = 该列内不同 top 的叶子文本元素个数。
 ROWS_JS = """() => {
+  // ★ 真实行数 = 每个叶子文字元素的「高度 ÷ lineHeight」之和。
+  //   千万别用「不同 top 的叶子元素个数」——一个 div 内部折成 3 行
+  //   仍然只算 1 个元素，会漏掉折行（v2.14.8 真踩过：截图里明显 3 行，
+  //   断言却报 2 行 PASS）。
   const lines = (root) => {
-    const tops = new Set();
+    let n = 0;
     root.querySelectorAll('*').forEach(el => {
-      // 只看真正带文字的叶子元素，避免把容器也算一行
       if (el.children.length > 0) return;
       const t = (el.innerText || '').trim();
       if (!t) return;
-      tops.add(Math.round(el.getBoundingClientRect().top / 4));
+      const cs = getComputedStyle(el);
+      const fsz = parseFloat(cs.fontSize) || 14;
+      const lh = parseFloat(cs.lineHeight) || fsz * 1.4;
+      n += Math.max(1, Math.round(el.getBoundingClientRect().height / lh));
     });
-    return tops.size;
+    return n;
   };
   const out = [];
   document.querySelectorAll('.row').forEach(row => {
     const left  = row.querySelector('.flex-1');
     const right = row.querySelector('.text-right');
     if (!left) return;
+    const kids = [...left.children].map(el => (el.innerText || '').trim());
     out.push({
       leftText:  (left.innerText  || '').trim(),
       rightText: right ? (right.innerText || '').trim() : '',
       leftLines:  lines(left),
       rightLines: right ? lines(right) : 0,
-      leftFS:  Math.round(parseFloat(getComputedStyle(left.querySelector('span') || left).fontSize)),
+      kids,
+      // 主名行的字号（大字模式拆两行后，第一行才是姓名）
+      leftFS:  Math.round(parseFloat(getComputedStyle(
+        left.querySelector('div, span') || left).fontSize)),
+      // 后缀行是否被截断（scrollWidth > clientWidth = 溢出被 truncate 掉了）
+      suffixClipped: [...left.children].some(
+        el => el.scrollWidth > el.clientWidth + 1),
       avatars: row.querySelectorAll('.rounded-full.bg-accent-soft').length,
       tags:    row.querySelectorAll('.tagx').length,
     });
@@ -102,9 +115,25 @@ with sync_playwright() as p:
     pg.screenshot(path=os.path.join(SHOTS, '29_persons_care_v2148.png'), full_page=True)
 
     ok("大字模式人员列表有数据行", len(rows) >= 3, f"count={len(rows)}")
-    ok("大字模式左列只有 1 行（无『N 次 · 收 X · 回 Y』副行）",
-       bool(rows) and all(r['leftLines'] == 1 for r in rows),
+    ok("大字模式左列最多 2 行（无『N 次 · 收 X · 回 Y』副行）",
+       bool(rows) and all(r['leftLines'] <= 2 for r in rows),
        f"{[(r['leftText'], r['leftLines']) for r in rows]}")
+
+    # ★ v2.14.8（涛哥定）：同名区分后缀「（堂哥·县城）」太长时，
+    #   主名独占一行、后缀独占一行，**断行处必须在括号**，
+    #   绝不能像浏览器默认那样断成「张三（堂哥」/「·县城）」，而且最多两行。
+    dup = [r for r in rows if len(r['kids']) >= 2]
+    plain = [r for r in rows if len(r['kids']) == 1]
+    ok("大字模式同名条目拆成 2 行（主名 + 后缀）", len(dup) >= 1, f"{[r['kids'] for r in dup]}")
+    ok("大字模式主名行不带括号（断行处就在括号前）",
+       bool(dup) and all('（' not in r['kids'][0] for r in dup),
+       f"{[r['kids'][0] for r in dup]}")
+    ok("大字模式后缀行以括号开头且独占一行",
+       bool(dup) and all(r['kids'][1].startswith('（') for r in dup),
+       f"{[r['kids'][1] for r in dup]}")
+    ok("大字模式无同名者仍是 1 行（不白白占高）",
+       bool(plain) and all(r['leftLines'] == 1 for r in plain),
+       f"{[r['kids'] for r in plain]}")
     ok("大字模式右列只有 1 行（无『人家多给/我多随/两清』副行）",
        bool(rows) and all(r['rightLines'] <= 1 for r in rows),
        f"{[(r['rightText'], r['rightLines']) for r in rows]}")
@@ -195,6 +224,33 @@ with sync_playwright() as p:
     if mask:
         mask.click()
     pg.wait_for_timeout(300)
+
+    # ============ 超长后缀：最多两行，超出就地截断，详情里再看 ============
+    import copy
+    long_seed = copy.deepcopy(with_settings(careMode=True, fontSize='xxl'))
+    long_seed['persons'] += [
+        {"id": "p5", "name": "赵六", "relation": "表叔",
+         "region": "沂源县南麻街道西台村", "createdAt": "2026-01-06T08:00:00Z",
+         "updatedAt": "2026-01-06T08:00:00Z"},
+        {"id": "p6", "name": "赵六", "relation": "表叔",
+         "region": "沂源县悦庄镇东里村", "createdAt": "2026-01-07T08:00:00Z",
+         "updatedAt": "2026-01-07T08:00:00Z"},
+    ]
+    load(pg, long_seed)
+    goto_persons(pg)
+    ld = pg.evaluate(ROWS_JS)
+    lrows = ld['rows']
+    zhao = [r for r in lrows if r['kids'] and r['kids'][0] == '赵六']
+    pg.screenshot(path=os.path.join(SHOTS, '33_persons_care_longname.png'), full_page=True)
+    ok("超长后缀：找到该条目", len(zhao) >= 2, f"{[r['kids'] for r in lrows]}")
+    ok("超长后缀：主名仍是干净的『赵六』", bool(zhao) and zhao[0]['kids'][0] == '赵六',
+       f"{zhao[0]['kids'] if zhao else None}")
+    ok("超长后缀：仍然只有 2 行（没撑成 3 行）",
+       bool(zhao) and all(r['leftLines'] == 2 for r in zhao),
+       f"{[(r['kids'], r['leftLines']) for r in zhao]}")
+    ok("超长后缀：第二行被就地截断（超出部分不展示）",
+       bool(zhao) and zhao[0]['suffixClipped'] is True,
+       f"kids={zhao[0]['kids'] if zhao else None} clipped={zhao[0]['suffixClipped'] if zhao else None}")
 
     # ================= 标准模式回归：一样都不能少 =================
     load_normal(pg)

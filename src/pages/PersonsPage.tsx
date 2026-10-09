@@ -23,6 +23,23 @@ import { LongPressTip, useTipOnce } from '../lib/LongPressTip';
 
 /* ---------- 主页面 ---------- */
 
+/**
+ * 「张三（堂哥·县城）」→ 拆成 ['张三', '（堂哥·县城）'] 两块。
+ *
+ * 为什么拆：大字模式字号很大，整串塞在一行会被浏览器从中间乱折
+ * （截出来是「张三（堂哥」/「·县城）」，断在括号中间，看不懂）。
+ * 拆开后主名独占一行、后缀独占一行，断行位置永远在括号处。
+ * 后缀再长也只占一行、超出就地截断 —— **最多两行**，
+ * 完整的区分信息点一下进详情看（涛哥 2026-10-10 定的规矩）。
+ *
+ * 没有括号后缀时（唯一姓名、或用的是区分名）原样返回，不拆。
+ */
+function splitCareName(full: string): [string, string] {
+  const m = /^(.*?)[（(]([^（()）]*)[）)]$/.exec(full);
+  if (!m || !m[1]) return [full, ''];
+  return [m[1], `（${m[2]}）`];
+}
+
 export function PersonsPage() {
   const { db, dispatch, stats } = useApp();
   const nav = useNavigate();
@@ -208,6 +225,8 @@ export function PersonsPage() {
             {list.map((s, i) => {
               const same = db.persons.filter((x) => x.name === s.person.name);
               const showDupTag = same.length > 1 && !s.person.alias?.trim();
+              const fullName = dn.get(s.person.id) ?? s.person.name;
+              const [careName, careSuffix] = splitCareName(fullName);
               return (
                 <PersonRow
                   key={s.person.id}
@@ -236,9 +255,34 @@ export function PersonsPage() {
                     </div>
                   )}
                   <div className={cn('flex-1 min-w-0', !care && 'pr-2')}>
+                    {/* 大字模式：主名一行，括号后缀再一行（最多两行，超长截断） */}
+                    {care ? (
+                      <>
+                        {/* 主名独占一行。
+                            ★ 这里**不能用 `truncate` 类**：index.css 有一条
+                            `[data-fontsize-scaled] .truncate { white-space: normal !important }`
+                            （M3 规范：放大后不许截断），大字模式必然命中它 ——
+                            实测 truncate 的计算值是 normal/visible/clip，
+                            后缀会被折成两行，卡片变 3 行。
+                            要单行截断就得显式写 nowrap + overflow-hidden。 */}
+                        <div className="text-[length:var(--f-lg)] font-medium
+                                        whitespace-nowrap overflow-hidden text-ellipsis">
+                          {careName}
+                        </div>
+                        {/* 括号后缀独占一行，太长就地截断 —— 最多两行，
+                            完整的「关系·地区」点一下进详情看（涛哥定的） */}
+                        {careSuffix && (
+                          <div className="text-[length:var(--f-md)] text-ink-3
+                                          whitespace-nowrap overflow-hidden text-ellipsis">
+                            {careSuffix}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                    <>
                     <div className={cn('flex items-center gap-1.5', care && 'min-w-0')}>
                       <span className="text-[length:var(--f-lg)] font-medium truncate">
-                        {dn.get(s.person.id) ?? s.person.name}
+                        {fullName}
                       </span>
                       {!care && s.person.relation && (
                         <span className="tagx bg-line/60 text-ink-2 shrink-0">
@@ -258,6 +302,8 @@ export function PersonsPage() {
                           ? `${s.count} 次 · 收 ${fmtMoney(s.received, '')} · 回 ${fmtMoney(s.returned, '')}`
                           : '暂无往来记录'}
                       </div>
+                    )}
+                    </>
                     )}
                   </div>
                   <div className="text-right shrink-0">

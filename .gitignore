@@ -21,3 +21,4 @@ _ui_compare/**/*.txt
 # 本地数据备份（导出的 JSON/CSV）
 *-备份-*.json
 *明细-*.csv
+__pycache__/

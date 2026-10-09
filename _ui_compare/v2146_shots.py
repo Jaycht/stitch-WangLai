@@ -77,23 +77,23 @@ with sync_playwright() as p:
     pg.click("button[aria-label='记一笔']"); pg.wait_for_timeout(500)
     pg.screenshot(path=f'{OUT}/15_direction_menu_care.png')
 
-    # 6) 对方办事录入表单
-    pg.click("button:has-text('对方办事')"); pg.wait_for_timeout(700)
+    # 6) 我随礼（别人办事）录入表单
+    pg.click("button:has-text('我随礼')"); pg.wait_for_timeout(700)
     pg.screenshot(path=f'{OUT}/16_editor_their_care.png')
     x = pg.query_selector("button[aria-label='关闭']")
     if x: x.click()
     pg.wait_for_timeout(400)
 
-    # 7) 我方办事录入表单
+    # 7) 别人随礼（我办事）录入表单
     pg.click("button[aria-label='记一笔']"); pg.wait_for_timeout(500)
-    pg.click("button:has-text('我方办事')"); pg.wait_for_timeout(700)
+    pg.click("button:has-text('别人随礼')"); pg.wait_for_timeout(700)
     pg.screenshot(path=f'{OUT}/17_editor_mine_care.png')
 
     # 8) 标准模式的方向菜单与表单
     load(pg, SEED)
     pg.click("button[aria-label='记一笔']"); pg.wait_for_timeout(500)
     pg.screenshot(path=f'{OUT}/18_direction_menu_normal.png')
-    pg.click("button:has-text('对方办事')"); pg.wait_for_timeout(700)
+    pg.click("button:has-text('我随礼')"); pg.wait_for_timeout(700)
     pg.screenshot(path=f'{OUT}/19_editor_their_normal.png')
 
     b.close()

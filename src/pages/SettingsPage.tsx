@@ -41,6 +41,7 @@ export function SettingsPage() {
   const st = db.settings;
   const { sysScale } = useTheme();
   const careOn = !!st.careMode;
+  // v2.14.7-final：字号改为原生下拉，无需展开/收起状态
 
   /** 关怀模式开关：开启时默认「跟随系统」，尊重用户已有的无障碍设置 */
   const toggleCare = () => {
@@ -339,35 +340,34 @@ export function SettingsPage() {
                 </div>
 
                 <div>
-                  <div className="text-[length:var(--f-sm)] text-ink-3 mb-1.5">
-                    应用内字号档位
-                  </div>
-                  <div className="grid grid-cols-3 gap-1.5 care-grid-3">
-                    {FONT_SCALES.filter((f) => f.key !== 'off').map((f) => (
-                      <button
-                        key={f.key}
-                        onClick={() => dispatch({ t: 'settings', s: { fontSize: f.key } })}
-                        className={cn('card px-2 py-2 flex flex-col items-center gap-0.5')}
-                        style={st.fontSize === f.key
-                          ? { boxShadow: '0 0 0 2px var(--color-accent)' }
-                          : undefined}
-                      >
-                        <span className="text-[length:var(--f-sm)]">{f.label}</span>
-                        <span className="text-[length:var(--f-xs)] text-ink-3">
-                          {f.key === 'auto' && sysScale > 1.01
-                            ? `${sysScale.toFixed(2)}×`
-                            : f.mult}
-                        </span>
-                      </button>
+                  {/* ★ v2.14.7-final（涛哥定稿）：
+                      原来 6 个档位铺成网格 → 大字模式强制单列 → 占掉整屏；
+                      改成「展开/收起」又不直观（涛哥否掉）。
+                      最终改为**原生下拉菜单**：平时只占一行，点一下由系统弹选择器，
+                      老人对这种「点开选一项」最熟。文案「字号档位」→「选择字体大小」，
+                      并去掉「最大 2.10×」这类倍数数字（对老人没有意义，只占地方）。
+                      用原生 select 而不是自绘下拉：系统会用大号字渲染选项，
+                      且不受本应用自身字号影响（自绘的会被自身样式限制住）。 */}
+                  <label className="label" htmlFor="care-font-size">
+                    选择字体大小
+                  </label>
+                  <select
+                    id="care-font-size"
+                    className="field"
+                    value={st.fontSize ?? 'off'}
+                    onChange={(e) =>
+                      dispatch({ t: 'settings', s: { fontSize: e.target.value } })
+                    }
+                  >
+                    {FONT_SCALES.map((f) => (
+                      <option key={f.key} value={f.key}>
+                        {f.label}
+                      </option>
                     ))}
-                  </div>
+                  </select>
+                  {/* 大字模式原则「越简洁越好」：原来 4 行说明压成一句 */}
                   <p className="text-[length:var(--f-xs)] text-ink-3 leading-relaxed mt-2">
-                    「跟随系统」= 只用手机
-                    <span className="mx-0.5">设置 → 显示与亮度 → 字体大小</span>
-                    的值，本应用不额外放大。选具体档位时取该值，
-                    系统已放大则以系统为准（不叠乘，避免超出 200% 上限）。
-                    依据 Material Design 3 无障碍规范。
-                    大字模式下自动切扁平主题并关闭毛玻璃。
+                    「跟随系统」＝用手机设置里的字体大小，本应用不额外放大。
                   </p>
                 </div>
               </>

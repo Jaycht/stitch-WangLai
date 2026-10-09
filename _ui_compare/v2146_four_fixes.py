@@ -119,16 +119,16 @@ with sync_playwright() as p:
     # 先恢复标准模式种子（前面问题1/2 用的是大字模式）
     load_seed(pg, SEED)
     pg.click("button[aria-label='记一笔']"); pg.wait_for_timeout(500)
-    menu = pg.query_selector("text=这次是谁办事？")
+    menu = pg.query_selector("[role=menu]")
     ok("问题4 点加号弹出方向菜单", menu is not None)
-    their = pg.query_selector("button:has-text('对方办事')")
-    mine  = pg.query_selector("button:has-text('我方办事')")
-    ok("问题4 菜单有对方办事", their is not None)
-    ok("问题4 菜单有我方办事", mine is not None)
+    their = pg.query_selector("button:has-text('我随礼')")
+    mine  = pg.query_selector("button:has-text('别人随礼')")
+    ok("问题4 菜单有「我随礼」选项", their is not None)
+    ok("问题4 菜单有「别人随礼」选项", mine is not None)
     if their:
         their.click(); pg.wait_for_timeout(600)
-        t = pg.query_selector("text=记一笔 · 对方办事")
-        ok("问题4 选对方办事→标题正确", t is not None)
+        t = pg.query_selector("text=记一笔 · 我随礼")
+        ok("问题4 选我随礼→标题正确", t is not None)
         lbl = pg.query_selector("text=我随礼付出（礼金）")
         ok("问题4 标准模式表单显示付出方向", lbl is not None)
         ok("问题4 不再有加回礼按钮", pg.query_selector("button:has-text('加回礼')") is None)
@@ -136,8 +136,8 @@ with sync_playwright() as p:
 
     if mine:
         pg.click("button[aria-label='记一笔']"); pg.wait_for_timeout(500)
-        pg.query_selector("button:has-text('我方办事')").click(); pg.wait_for_timeout(600)
-        ok("问题4 选我方办事→标题正确", pg.query_selector("text=记一笔 · 我方办事") is not None)
+        pg.query_selector("button:has-text('别人随礼')").click(); pg.wait_for_timeout(600)
+        ok("问题4 选别人随礼→标题正确", pg.query_selector("text=记一笔 · 别人随礼") is not None)
         ok("问题4 标准模式表单显示收到方向", pg.query_selector("text=我收到的礼金") is not None)
         close_sheet(pg)
 
@@ -231,7 +231,7 @@ with sync_playwright() as p:
 
     # 录入：只有姓名 + 金额 + 备注，无渠道/地点/礼物/日期/事由/备注独立组
     pg.click("button[aria-label='记一笔']"); pg.wait_for_timeout(500)
-    pg.click("button:has-text('对方办事')"); pg.wait_for_timeout(700)
+    pg.click("button:has-text('我随礼')"); pg.wait_for_timeout(700)
     care_form = pg.evaluate("""() => {
       const sheet = document.querySelector('.sheet-mask') || document.body;
       const labels = [...sheet.querySelectorAll('label')].map(l => l.innerText.trim());
@@ -258,7 +258,7 @@ with sync_playwright() as p:
     ns = json.loads(json.dumps(SEED)); ns['settings']['careMode']=False; ns['settings']['fontSize']='off'
     load_seed(pg, ns)
     pg.click("button[aria-label='记一笔']"); pg.wait_for_timeout(500)
-    pg.click("button:has-text('对方办事')"); pg.wait_for_timeout(700)
+    pg.click("button:has-text('我随礼')"); pg.wait_for_timeout(700)
     normal_form = pg.evaluate("""() => {
       const sheet = document.querySelector('.sheet-mask') || document.body;
       return [...sheet.querySelectorAll('label')].map(l => l.innerText.trim());

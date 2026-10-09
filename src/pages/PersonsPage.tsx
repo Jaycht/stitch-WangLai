@@ -215,8 +215,12 @@ export function PersonsPage() {
                   onLongPress={() => onRowLongPress(s.person.id)}
                   className={cn(i > 0 && 'border-t border-line')}
                 >
+                  {/* 姓氏圆牌。★ v2.14.7（涛哥截图指正）：原来 w-8 h-[var(--h-ctl)]，
+                      宽固定 32px、高随字号涨 → 大字下变成一颗细长「药丸」。
+                      改为**正圆**且边长跟随字号，视觉上就是个圆牌。 */}
                   <div
-                    className="w-8 h-[var(--h-ctl)] rounded-full bg-accent-soft text-accent
+                    className="w-[calc(var(--f-md)*2.1)] h-[calc(var(--f-md)*2.1)] rounded-full
+                                bg-accent-soft text-accent
                                 flex items-center justify-center text-[length:var(--f-md)]
                                 font-medium shrink-0"
                   >

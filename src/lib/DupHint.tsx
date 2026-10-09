@@ -86,7 +86,8 @@ export function DupPicker({
               onClick={() => { onPick(p); onClose(); }}
               className="row w-full text-left active:bg-paper"
             >
-              <div className="w-8 h-[var(--h-ctl)] rounded-full bg-accent-soft text-accent shrink-0
+              <div className="w-[calc(var(--f-md)*2.1)] h-[calc(var(--f-md)*2.1)] rounded-full
+                              bg-accent-soft text-accent shrink-0
                               flex items-center justify-center text-[length:var(--f-md)] font-medium">
                 {p.name.slice(0, 1)}
               </div>

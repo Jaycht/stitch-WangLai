@@ -497,9 +497,13 @@ function RecordRow({
  */
 export type Direction = 'their' | 'mine';
 
+/* v2.14.7-final（涛哥定稿）：标题写「我做了什么」，副标题写「谁办事」。
+   —— 对年纪大的人，动作比「对方/我方」这种代词好懂得多：
+      我随礼（别人办事）＝我把钱给出去了
+      别人随礼（我办事）＝钱进我口袋 */
 const DIR_INFO: Record<Direction, { title: string; sub: string; side: 'out' | 'in' }> = {
-  their: { title: '对方办事', sub: '别人办席，我随礼付出', side: 'out' },
-  mine:  { title: '我方办事', sub: '我办席，收对方的礼', side: 'in' },
+  their: { title: '我随礼', sub: '别人办事', side: 'out' },
+  mine:  { title: '别人随礼', sub: '我办事', side: 'in' },
 };
 
 /**
@@ -536,16 +540,19 @@ function DirectionMenu({
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div
         ref={ref}
-        className="fixed z-50 w-[15rem] card overflow-hidden"
+        /* 宽度跟着字号走，不要写死 rem ——
+           大字模式下文字放大，写死的 15rem 装不下「别人办事，我随礼」，
+           副标题会被压成两行（涛哥真机截图确认）。
+           用 ch（字符宽）随内容伸缩，同时不超出屏幕。 */
+        className="fixed z-50 w-[min(22rem,calc(100vw-2rem))] card overflow-hidden"
         style={{
           right: 'calc(var(--s-3) + 0.75rem)',
           bottom: 'calc(var(--h-tab) + var(--sab) + 16px + 3.5rem + 0.5rem)',
         }}
         role="menu"
       >
-        <div className="px-3 py-2 text-[length:var(--f-xs)] text-ink-3 border-b border-line">
-          这次是谁办事？
-        </div>
+        {/* v2.14.7-final：去掉「这次是谁办事？」标题。
+            两个选项本身已经说清楚了，标题只是多占一行。 */}
         {(['their', 'mine'] as Direction[]).map((d) => {
           const info = DIR_INFO[d];
           return (

@@ -61,10 +61,10 @@ export function FunctionsPage() {
           )}
         >
           <div className={cn(
-            'w-8 h-[var(--h-ctl)] rounded-lg flex items-center justify-center shrink-0',
+            'w-[calc(var(--f-md)*2.1)] h-[calc(var(--f-md)*2.1)] rounded-lg flex items-center justify-center shrink-0',
             openTodos > 0 ? 'bg-accent text-white' : 'bg-paper text-ink-3',
           )}>
-            <ListChecks size={17} strokeWidth={1.8} />
+            <ListChecks size={17} strokeWidth={1.8} className="w-[calc(var(--f-md)*1.15)] h-[calc(var(--f-md)*1.15)]" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-[length:var(--f-md)] font-medium">待办事项</div>
@@ -83,19 +83,29 @@ export function FunctionsPage() {
         </button>
         )}
 
-        {/* 工具入口 */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* 工具入口。
+            ★ v2.14.7：原来固定两列，大字模式下每格只有 ~160px，
+            功能名（「万年黄历」4 个字）被压成竖排换行、描述也跟着断行，
+            很难看。两列的前提是「每格文字放得下」，不成立时必须单列。 */}
+        <div className={cn('grid gap-2', care ? 'grid-cols-1' : 'grid-cols-2')}>
           {FEATURES.map(({ to, label, desc, Icon, color }) => (
             <button
               key={to}
               onClick={() => nav(to)}
               className="card px-3 py-3 flex items-center gap-2.5 text-left active:bg-paper"
             >
+              {/* 工具入口图标底纹。
+                  ★ v2.14.7（涛哥截图指正）：原来是 w-8 h-[var(--h-ctl)]，
+                  **宽度写死 32px、高度却随字号涨到 60~80px** →
+                  大字模式下变成一条细长的色块，比图标本身大好几倍，很怪。
+                  正确做法：底纹跟着字号一起缩放（用 em/字号令牌），
+                  始终是一个「比图标大一点点的圆角方块」，只提供轻微包围感。 */}
               <div
-                className="w-8 h-[var(--h-ctl)] rounded-lg flex items-center justify-center shrink-0"
+                className="w-[calc(var(--f-md)*2.1)] h-[calc(var(--f-md)*2.1)]
+                           rounded-lg flex items-center justify-center shrink-0"
                 style={{ background: `${color}14`, color }}
               >
-                <Icon size={17} strokeWidth={1.8} />
+                <Icon size={17} strokeWidth={1.8} className="w-[calc(var(--f-md)*1.15)] h-[calc(var(--f-md)*1.15)]" />
               </div>
               <div className="min-w-0">
                 <div className="text-[length:var(--f-md)] font-medium truncate">{label}</div>

@@ -37,8 +37,8 @@ def open_editor(pg):
     # v2.14.6：点加号先弹方向菜单，选一个方向才进编辑器
     pg.wait_for_selector("button[aria-label='记一笔']", timeout=6000)
     pg.click("button[aria-label='记一笔']")
-    pg.wait_for_selector("text=这次是谁办事？", timeout=5000)
-    pg.click("button:has-text('对方办事')")
+    pg.wait_for_selector("[role=menu]", timeout=5000)
+    pg.click("button:has-text('我随礼')")
     pg.wait_for_selector("text=记一笔", timeout=5000)
     pg.wait_for_timeout(300)
 

@@ -9,7 +9,7 @@
 
 import {
   DB, EMPTY_DB, SCHEMA_VERSION, Person, GiftRecord, Settings, Todo,
-  CustomEvent, DEFAULT_SETTINGS,
+  CustomEvent, DEFAULT_SETTINGS, BUILTIN_EVENTS,
 } from './types';
 
 const KEY = 'wanglai.db.v1';
@@ -53,6 +53,19 @@ function normChannel(v: unknown): string {
 }
 
 /**
+ * 事由别名表：中文写法 -> 内置 key。
+ * 提到模块级，供 normEvent 与 isRecognizedEvent 共用。
+ */
+const EVENT_ALIAS: Record<string, string> = {
+  婚礼: 'wedding', 结婚: 'wedding', 订婚: 'betrothal', 生日: 'birthday',
+  满月: 'full_month', 满月酒: 'full_month', 百日: 'baptism', 升学: 'school',
+  升学宴: 'school', 乔迁: 'moving', 开业: 'business', 丧事: 'funeral',
+  // 「殡礼」是旧版数据里用得最多的白事写法，不补会整批降级成「其他」。
+  殡礼: 'funeral', 白事: 'funeral', 出殡: 'funeral',
+  忌日: 'memorial', 祭祀: 'sacrifice', 其他: 'other',
+};
+
+/**
  * 事由 key 归一。
  *
  * 关键：不靠 key 格式猜，而是靠「这个 key 是否在 customEvents 里」。
@@ -65,26 +78,46 @@ function normEvent(
 ): string {
   const s = str(v);
   if (VALID_EVENTS.includes(s)) return s;
-  const map: Record<string, string> = {
-    婚礼: 'wedding', 结婚: 'wedding', 订婚: 'betrothal', 生日: 'birthday',
-    满月: 'full_month', 满月酒: 'full_month', 百日: 'baptism', 升学: 'school',
-    升学宴: 'school', 乔迁: 'moving', 开业: 'business', 丧事: 'funeral',
-    白事: 'funeral', 出殡: 'funeral', 忌日: 'memorial', 祭祀: 'sacrifice',
-    其他: 'other',
-  };
-  if (map[s]) return map[s];
+  if (EVENT_ALIAS[s]) return EVENT_ALIAS[s];
   // 在自定义事由表里找得到 -> 原样保留，绝不降级（降级等于抹掉用户建的事由）
   if (customKeys?.has(s)) return s;
   return 'other';
 }
 
+/**
+ * 这个分类名认不认识？（内置 key / 别名 / 已在自定义表里）
+ *
+ * 用来判断旧版自定义分类是该映射到内置事由，
+ * 还是得原样保留成一条自定义事由。认不出来却直接丢，
+ * 用户的「探病」这类分类就变成了「其他」，等于抹掉。
+ */
+function isRecognizedEvent(s: string, customKeys?: Set<string>): boolean {
+  return VALID_EVENTS.includes(s) || !!EVENT_ALIAS[s] || !!customKeys?.has(s);
+}
+
 /** 旧 v1 场景名 -> 新 EventKind */
-function normEventFromScenario(v: unknown): string {
+function normEventFromScenario(v: unknown, customKeys?: Set<string>): string {
   const s = str(v);
   if (VALID_EVENTS.includes(s)) return s;
   if (s === 'solemn') return 'funeral';
   if (s === 'celebration') return 'other';
-  return normEvent(s);
+  return normEvent(s, customKeys);
+}
+
+/**
+ * 判断旧记录是不是「我给出」（随礼）。
+ *
+ * 旧版方向标记五花八门：最早的 HTML 版用拼音 'sui'，
+ * 后来的版本才改成 'sent'/'received'。只认 'sent' 的话，
+ * 一整批 'sui' 的随礼记录会被当成「我收到」——
+ * 方向一错，收支就整体反号，人情净值也跟着错。
+ */
+function isLegacyOut(v: unknown): boolean {
+  const s = str(v).trim().toLowerCase();
+  return (
+    s === 'sent' || s === 'sui' || s === 'give' || s === 'out' || s === 'pay' ||
+    s === '随礼' || s === '给出' || s === '我给出'
+  );
 }
 
 function normDate(v: unknown): string {
@@ -184,15 +217,24 @@ function normRecord(raw: any, customKeys?: Set<string>): GiftRecord | null {
   // v1 -> v2
   const d = raw?.date ? normDate(raw.date)
     : raw?.createdAt ? normDate(raw.createdAt) : today();
-  const amt = num(raw?.amount ?? raw?.money);
-  const ev = normEventFromScenario(raw?.event ?? raw?.scenario);
+  // 最早的 HTML 版字段名是 amt / cat / type:'sui'，
+  // 与后来的 amount / event / 'sent' 全不一样。
+  // 少认一个字段的后果是静默的：金额读成 0 显示「未填金额」，
+  // 事由回落「其他」，方向判反 —— 数据看着导入成功了，内容却全错。
+  const amt = num(raw?.amount ?? raw?.money ?? raw?.amt ?? raw?.value);
+  const ev = normEventFromScenario(
+    raw?.event ?? raw?.eventName ?? raw?.scenario ?? raw?.cat ?? raw?.category,
+    customKeys,
+  );
   const side = {
-    channel: normChannel(raw?.channel) as any,
+    channel: normChannel(raw?.channel ?? raw?.payType ?? raw?.payMethod) as any,
     amount: amt,
     date: d,
     event: ev as any,
+    // v2.14.0：可选时间 HH:mm，旧数据没有就是undefined，不影响导入
+    time: /^\d{1,2}:\d{2}$/.test(str(raw?.time ?? raw?.at)) ? str(raw.time ?? raw.at) : undefined,
   };
-  const isSent = str(raw?.type) === 'sent' || raw?.direction === 'sent';
+  const isSent = isLegacyOut(raw?.type ?? raw?.direction);
   return {
     id: str(raw?.id) || uid(),
     personId,
@@ -200,7 +242,7 @@ function normRecord(raw: any, customKeys?: Set<string>): GiftRecord | null {
       ? { ...side, amount: 0, channel: 'cash' }   // 纯随礼：收礼侧留空
       : side,
     returned: isSent ? side : undefined,
-    remark: str(raw?.remark) || undefined,
+    remark: str(raw?.remark ?? raw?.note) || undefined,
     createdAt: str(raw?.createdAt) || ts,
     updatedAt: str(raw?.updatedAt) || ts,
   };
@@ -260,6 +302,22 @@ export function migrate(input: any): DB {
     customEvents.push({ key, label, tone, createdAt: str(raw?.createdAt) || now() });
   }
   const customKeys = new Set(customEvents.map((c) => c.key));
+
+  // ---- 旧版（最早的 HTML 版）自定义分类：cats:[{n:'探病', t:'xi'|'bai'}] ----
+  // 这些是用户当年亲手分的类。认得出的（结婚/升学/殡礼…）走内置别名；
+  // 认不出的（探病之类）原样登记成自定义事由 —— 直接丢成「其他」等于抹掉。
+  const rawCats: any[] = Array.isArray(input.cats) ? input.cats : [];
+  for (const c of rawCats) {
+    const label = str(c?.n ?? c?.name ?? c?.label).trim();
+    if (!label || isRecognizedEvent(label, customKeys)) continue;
+    customEvents.push({
+      key: label,
+      label,
+      tone: str(c?.t ?? c?.tone) === 'bai' ? 'solemn' : 'fest',
+      createdAt: str(c?.createdAt) || now(),
+    });
+    customKeys.add(label);
+  }
 
   const personIndex = new Map<string, string>();
   const rawPersons: any[] = Array.isArray(input.persons)

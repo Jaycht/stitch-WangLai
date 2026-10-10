@@ -1,7 +1,7 @@
 /** 版本、作者与更新日志 */
 
 /** 应用版本号 */
-export const VERSION = '2.14.9';
+export const VERSION = '2.15.0';
 
 /** 作者（显示在「关于」页与各版本更新日志末尾） */
 export const AUTHOR = '陈洪涛';
@@ -14,6 +14,14 @@ export const COPYRIGHT =
 export const VERSION_LABEL = `v${VERSION}　${COPYRIGHT}`;
 
 export const CHANGELOG: { ver: string; items: string[] }[] = [
+  {
+    ver: '2.15.0',
+    items: [
+      '★修复导入旧版备份后「只有姓名没有金额」：早期版本的备份里金额字段叫 amt、事由叫 cat、方向标记是拼音 sui，而导入逻辑只认新版那套名字，于是金额一律读成 0（显示「未填金额」）、事由全变成「其他」、连收礼回礼都判反了。现在三种旧写法一并识别，金额、事由、方向全部原样恢复',
+      '旧数据里的「殡礼」正确归入白事（丧事），不再降级成「其他」',
+      '旧版自定义分类（如「探病」）导入后保留原名，不会被抹成「其他」',
+    ],
+  },
   {
     ver: '2.14.9',
     items: [
